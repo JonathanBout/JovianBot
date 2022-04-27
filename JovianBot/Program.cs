@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.Net;
+using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
@@ -16,7 +17,6 @@ namespace Jovian
     public class Program
     {
         readonly IConfiguration config;
-        Dictionary<string, Action<SocketSlashCommand>> SlashActions = new Dictionary<string, Action<SocketSlashCommand>>();
         DiscordSocketClient client;
 
         public Program()
@@ -24,29 +24,41 @@ namespace Jovian
             client = new DiscordSocketClient();
             client.Log += Log;
             client.Ready += Client_Ready;
-            client.SlashCommandExecuted += Client_SlashCommandExecuted;
+            client.MessageReceived += MessageReceivedAsync;
             var builder = new ConfigurationBuilder().SetBasePath(AppContext.BaseDirectory)
                 .AddJsonFile("config.json");
             config = builder.Build();
+        }
+
+        private async Task MessageReceivedAsync(SocketMessage message)
+        {
+            //This ensures we don't loop things by responding to ourselves (as the bot)
+            if (message.Author.Id == client.CurrentUser.Id)
+                return;
+
+            if (message.Content == ".hello")
+            {
+                await message.Channel.SendMessageAsync("world!");
+            }
         }
 
         [STAThread]
         public static Task Main(string[] args) => new Program().Main();
         public async Task Main()
         {
-            await client.LoginAsync(TokenType.Bot, config["Token"]);
-            await client.StartAsync();
-            
-            await Task.Delay(-1);
-        }
-
-        private async Task Client_SlashCommandExecuted(SocketSlashCommand arg)
-        {
             try
             {
-                SlashActions[arg.CommandName].Invoke(arg);
-            }
-            catch (Exception ex)
+                await client.LoginAsync(TokenType.Bot, config["Token"]);
+                await client.StartAsync();
+                if ((await client.GetChannelAsync(968176792751976490)) is IMessageChannel channel && client.CurrentUser is not null)
+                {
+                    await channel.SendMessageAsync($"Bot {client.CurrentUser.Username} is online!");
+                }else
+                {
+                    await LogError(new Exception("Specified channel is not a Text Channel!"));
+                }
+                await Task.Delay(-1);
+            }catch (Exception ex)
             {
                 await LogError(ex);
             }
@@ -54,38 +66,20 @@ namespace Jovian
 
         private async Task Client_Ready()
         {
-            var globalCommand = new SlashCommandBuilder()
-            .WithName("first-global-command")
-            .WithDescription("My first global Command");
-            SlashActions.Add(globalCommand.Name, async (x) =>
-            {
-                await Log($"Command {x.CommandName} was executed by {x.User.Username}.");
-                await x.RespondAsync($"{x.User.Username} executed {x.CommandName}.");
-            });
-
-            try
-            {
-                //await guild.CreateApplicationCommandAsync(guildCommand.Build());
-                await client.CreateGlobalApplicationCommandAsync(globalCommand.Build());
-            }
-            catch (Exception ex)
-            {
-                await LogError(ex);
-            }
         }
 
-        Task Log(LogMessage msg)
+        static Task Log(LogMessage msg)
         {
             return Log(msg.ToString());
         }
 
-        Task Log(string msg)
+        static Task Log(string msg)
         {
             Console.WriteLine(msg);
             return Task.CompletedTask;
         }
 
-        Task LogError(Exception ex)
+        static Task LogError(Exception ex)
         {
             var data = $"message: {ex.Message}\nsource:{ex.Source}";
             ConsoleColor original = Console.ForegroundColor;
