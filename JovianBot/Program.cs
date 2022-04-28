@@ -19,8 +19,8 @@ namespace Jovian
     {
         static readonly IConfiguration config;
         static public DiscordSocketClient client;
-        static DateTime startTime;
         static private bool suspendLog;
+        static IMessageChannel? botChannel;
 
         #region Constructor and Main
         static Program()
@@ -33,13 +33,11 @@ namespace Jovian
             Process[] processlist = Process.GetProcesses();
             foreach (Process theprocess in processlist)
             {
-                if (theprocess.ProcessName == Process.GetCurrentProcess().ProcessName && theprocess.Id != Process.GetCurrentProcess().Id)
+                if (theprocess.ProcessName == Process.GetCurrentProcess().ProcessName && theprocess.Id != Environment.ProcessId)
                 {
                     Process.GetCurrentProcess().Kill();
                 }
             }
-            startTime = DateTime.Now;
-
             //setting up the Discord Client and some events
             client = new DiscordSocketClient();
             client.Log += Log;
@@ -62,6 +60,12 @@ namespace Jovian
                 await LogError(ex);
             }
         }
+
+        private static async Task Client_Ready()
+        {
+            await SendMessage("I'm online! 🥳");
+            botChannel = await client.GetChannelAsync(968176792751976490) as IMessageChannel;
+        }
         #endregion
 
         private static async void CurrentDomain_ProcessExit(object? sender, EventArgs e)
@@ -70,7 +74,6 @@ namespace Jovian
             {
                 string username = client.CurrentUser?.Username + " " ?? "";
                 await SendMessage($"I'm going offline👋");
-                await Log($"Bot {username} is going offline after {DateTime.Now - startTime} of uptime.");
 
                 await client.LogoutAsync();
             }catch (Exception ex)
@@ -79,11 +82,11 @@ namespace Jovian
             }
         }
 
-        private static Task MessageReceivedAsync(SocketMessage message)
+        private static async Task MessageReceivedAsync(SocketMessage message)
         {
             //This ensures we don't loop things by responding to ourselves (as the bot)
-            if (message.Author.Id == client.CurrentUser.Id)
-                return Task.CompletedTask;
+            if (message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
+                return;
 
             if (message.Content.StartsWith('.'))
             {
@@ -94,19 +97,22 @@ namespace Jovian
                 {
                     if (dotCommand == command)
                     {
-                        dotCommand.Invoke(args);
-                        break;
+                        var userRoles = ((SocketGuildUser)message.Author).Roles;
+                        if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole))
+                        {
+                            dotCommand.Invoke(args);
+                            break;
+                        }else
+                        {
+                            await SendMessage("You do not have permission to send this command.");
+                        }
                     }
                 }
             }
-            return Task.CompletedTask;
+            return;
         }
 
 
-        private static async Task Client_Ready()
-        {
-            await SendMessage("I'm online! 🥳");
-        }
 
         static Task Log(LogMessage msg)
         {
@@ -135,7 +141,7 @@ namespace Jovian
 
         public static async Task<IUserMessage?> SendMessage(string message)
         {
-            if ((await client.GetChannelAsync(968176792751976490)) is IMessageChannel channel)
+            if (botChannel is IMessageChannel channel)
             {
                 return await channel.SendMessageAsync(message);
             }
@@ -145,7 +151,7 @@ namespace Jovian
         public static async Task MakePoll(string args)
         {
             if (args.Parse().Length <= 2) { await SendMessage("Too few arguments!"); return; }
-            if ((await client.GetChannelAsync(968176792751976490)) is IMessageChannel channel)
+            if (botChannel is not null)
             {
                 string[] argsArray = args.Parse();
                 string pollText = argsArray[0];
@@ -186,7 +192,7 @@ namespace Jovian
 
         public static async Task RemoveMessages()
         {
-            if ((await client.GetChannelAsync(968176792751976490)) is IMessageChannel channel)
+            if (botChannel is IMessageChannel channel)
             {
                 await Log("Removing all messages. this will take some time.", false);
                 IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
@@ -214,7 +220,7 @@ namespace Jovian
                 "python"        => Format.Code("print('Hello, world!')", "python"),
                 "nohtyp"        => Format.Code(")\"!dlroW olleH\"(tnirp"),
                 
-                "go"            => Format.Code("package main\nimport\"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World!\")\n}"),
+                "go"            => Format.Code("package main\nimport\"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World!\")\n}", "go"),
                 "rust"          => Format.Code("fn main(){\n\tprintln!(\"Hello World!\");\n}", "rust"),
                 "fortran"       => Format.Code("program HelloWorld\n\tprint *, \"Hello World!\"\nend program HelloWorld", "fortran"),
                 
@@ -224,7 +230,7 @@ namespace Jovian
                 "powershell"    => Format.Code("'Hello World!'", "powershell"),
                 "bash"          => Format.Code("echo \"Hello World!\"", "bash"),
                 "perl"          => Format.Code("print \"Hello World!\\n\";", "perl"),
-                "tcl" or "ruby" => Format.Code("puts \"Hello World!\""),
+                "tcl" or "ruby" => Format.Code("puts \"Hello World!\"", "ruby"),
                 _ => "",
             };
             if (s != "")
