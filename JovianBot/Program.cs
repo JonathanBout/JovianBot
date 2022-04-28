@@ -215,13 +215,16 @@ namespace Jovian
         {
             if (botChannel is IMessageChannel channel)
             {
-                suspendLog = true;
                 await Log("Removing all messages. this will take some time.", false);
+                suspendLog = true;
                 IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
-                await messages.Flatten().ForEachAsync(async x => await x.DeleteAsync());
+                await foreach(IMessage message in messages.Flatten())
+                {
+                    await message.DeleteAsync();
+                }
+                suspendLog = false;
                 await Log("");
                 await Log("Done!");
-                suspendLog = false;
             }
         }
 
