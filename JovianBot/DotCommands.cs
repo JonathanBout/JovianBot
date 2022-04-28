@@ -16,7 +16,7 @@ namespace Jovian
             Commands.Add(new DotCommand(async x => await Program.SendCodeSnippet(x), "Sends a code snippet to print 'Hello World!' in the specified language.", "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"));
             Commands.Add(new DotCommand(async x => await Program.SendMessage(Format.BlockQuote(GetHelpString(Find(x)))), "Help Command. Use this to view help for all or for a specific command.", "help", "all", "commands"));
             Commands.Add(new DotCommand(async x => await Program.RemoveMessages(), "Clears the last 100 messages", "clearmessages", "clear", "removemessages"));
-            Commands.Add(new DotCommand(async x => await Program.MakePoll(x), "Makes a poll with up to four options.", "poll", "questions"));
+            Commands.Add(new DotCommand(async x => await Program.MakePoll(x), "Makes a poll with up to nine options.", "poll", "questions"));
         }
 
         public static string GetHelpString(DotCommand? command = null)
