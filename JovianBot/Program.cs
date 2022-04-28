@@ -79,32 +79,17 @@ namespace Jovian
             }
         }
 
-        private static async Task MessageReceivedAsync(SocketMessage message)
+        private static Task MessageReceivedAsync(SocketMessage message)
         {
             //This ensures we don't loop things by responding to ourselves (as the bot)
             if (message.Author.Id == client.CurrentUser.Id)
-                return;
+                return Task.CompletedTask;
 
             if (message.Content.StartsWith('.'))
             {
                 string commandWithArgs = message.Content.TrimStart('.', ' ');
                 string args = string.Join(' ', commandWithArgs.Split(' ').Skip(1));
                 string command = string.Join("", commandWithArgs.Split(' ').Take(1));
-                //switch (command.Split(' ')[0].ToLower())
-                //{
-                //    case "snippet":
-                //    case "helloworld":
-                //    case "hellosnippet":
-                //    case "helloworldsnippet":
-                //        await SendCodeSnippet(command);
-                //        break;
-                //    case "clearmessages":
-                //        await RemoveMessages();
-                //        break;
-                //    default:
-                //        await SendMessage($"I dont know what you mean by {command} 🤷");
-                //        break;
-                //}
                 foreach (DotCommand dotCommand in DotCommands.Commands)
                 {
                     if (dotCommand == command)
@@ -114,12 +99,13 @@ namespace Jovian
                     }
                 }
             }
+            return Task.CompletedTask;
         }
 
 
         private static async Task Client_Ready()
         {
-            await SendMessage("I'm online!🥳");
+            await SendMessage("I'm online! 🥳");
         }
 
         static Task Log(LogMessage msg)
@@ -147,11 +133,54 @@ namespace Jovian
             return Task.CompletedTask;
         }
 
-        public static async Task SendMessage(string message)
+        public static async Task<IUserMessage?> SendMessage(string message)
         {
             if ((await client.GetChannelAsync(968176792751976490)) is IMessageChannel channel)
             {
-                await channel.SendMessageAsync(message);
+                return await channel.SendMessageAsync(message);
+            }
+            return default;
+        }
+
+        public static async Task MakePoll(string args)
+        {
+            if (args.Parse().Length <= 2) { await SendMessage("Too few arguments!"); return; }
+            if ((await client.GetChannelAsync(968176792751976490)) is IMessageChannel channel)
+            {
+                string[] argsArray = args.Parse();
+                string pollText = argsArray[0];
+                for (int i = 0; i < argsArray.Length - 1 && i < 9; i++)
+                {
+                    string arg = argsArray.Skip(1).Take(argsArray.Length - 1).ToArray()[i];
+                    string emoji = $"{i + 1}⃣";
+                    pollText += $"\n{emoji} => {arg}";
+                }
+                IUserMessage? msg = await SendMessage(pollText);
+                if (msg is null)
+                {
+                    return;
+                }
+                for (int i = 0; i < argsArray.Length - 1; i++)
+                {
+                    string emote = i switch
+                    {
+                        0 => ":one:",
+                        1 => ":two:",
+                        2 => ":three:",
+                        3 => ":four:",
+                        4 => ":five:",
+                        5 => ":six:",
+                        6 => ":seven:",
+                        7 => ":eight:",
+                        8 => ":nine:",
+                        _ => ""
+
+                    };
+                    if (Emoji.TryParse(emote, out Emoji result))
+                    {
+                        await msg.AddReactionAsync(result);
+                    }
+                }
             }
         }
 
@@ -176,39 +205,57 @@ namespace Jovian
         public static async Task SendCodeSnippet(string message)
         {
             string[] args = message.Split(' ').ToArray();
-            string s = "";
-            switch (args[0].ToLower())
+            string s = args[0].ToLower() switch
             {
-                case "java":
-                    s = Format.Code("class HelloWorld {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println(\"Hello World!\");\n\t}\n}", "java");
-                    break;
-                case "c#":
-                    s = Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "csharp");
-                    break;
-                case "python":
-                    s = Format.Code("print('Hello, world!')", "python");
-                    break;
-                case "javascript":
-                    s = Format.Code("console.log('Hello World');", "javascript") + "\nor\n" + Format.Code("alert(\"Hello World!\");", "javascript");
-                    break;
-                case "c":
-                    s = Format.Code("#include <stdio.h>\n\nint main()\n{\n\tprintf(\"Hello World!\n\");\n\treturn 0;\n}", "c");
-                    break;
-                case "c++":
-                    s = Format.Code("#include <format>\n\nint main()\n{\n\tstd::print(\"Hello World!\");\n\treturn 0;\n}");
-                        break;
-                case "fortran":
-                    s = Format.Code("program HelloWorld\n\tprint *, \"Hello World!\"\nend program HelloWorld", "fortran");
-                    break;
-                default:
-                    s = "";
-                    break;
-
-            }
+                "c"             => Format.Code("#include <stdio.h>\n\nint main()\n{\n\tprintf(\"Hello World!\");\n\treturn 0;\n}", "c"),
+                "c++"           => Format.Code("#include <format>\n\nint main()\n{\n\tstd::print(\"Hello World!\");\n\treturn 0;\n}"),
+                "c#"            => Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "csharp"),
+                
+                "python"        => Format.Code("print('Hello, world!')", "python"),
+                "nohtyp"        => Format.Code(")\"!dlroW olleH\"(tnirp"),
+                
+                "go"            => Format.Code("package main\nimport\"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World!\")\n}"),
+                "rust"          => Format.Code("fn main(){\n\tprintln!(\"Hello World!\");\n}", "rust"),
+                "fortran"       => Format.Code("program HelloWorld\n\tprint *, \"Hello World!\"\nend program HelloWorld", "fortran"),
+                
+                "java"          => Format.Code("class HelloWorld {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println(\"Hello World!\");\n\t}\n}", "java"),
+                "javascript"    => Format.Code("console.log('Hello World');", "javascript") + "\nor\n" + Format.Code("alert(\"Hello World!\");", "javascript"),
+                
+                "powershell"    => Format.Code("'Hello World!'", "powershell"),
+                "bash"          => Format.Code("echo \"Hello World!\"", "bash"),
+                "perl"          => Format.Code("print \"Hello World!\\n\";", "perl"),
+                "tcl" or "ruby" => Format.Code("puts \"Hello World!\""),
+                _ => "",
+            };
             if (s != "")
-                await SendMessage($"Hello World code snippet ({args[0]}): {s}");
+                await SendMessage($"Hello World code snippet ({args[0]}): {s.ToLower()}");
             else
                 await SendMessage("I don't know that language (yet)");
+        }
+
+        private static string[] Parse(this string str)
+        {
+            var retval = new List<string>();
+            if (string.IsNullOrWhiteSpace(str)) return retval.ToArray();
+            int ndx = 0;
+            string s = "";
+            bool insideDoubleQuote = false;
+            bool insideSingleQuote = false;
+
+            while (ndx < str.Length)
+            {
+                if (str[ndx] == ' ' && !insideDoubleQuote && !insideSingleQuote)
+                {
+                    if (!string.IsNullOrWhiteSpace(s.Trim())) retval.Add(s.Trim());
+                    s = "";
+                }
+                if (str[ndx] == '"') insideDoubleQuote = !insideDoubleQuote;
+                if (str[ndx] == '\'') insideSingleQuote = !insideSingleQuote;
+                s += str[ndx];
+                ndx++;
+            }
+            if (!string.IsNullOrWhiteSpace(s.Trim())) retval.Add(s.Trim());
+            return retval.Select(x => x.Trim('\"', '\'')).ToArray();
         }
     }
 }
