@@ -15,16 +15,21 @@ using System.Threading.Tasks;
 
 namespace Jovian
 {
-    public class Program
+    public static class Program
     {
-        readonly IConfiguration config;
-        DiscordSocketClient client;
-        DateTime startTime;
-        private bool suspendLog;
+        static readonly IConfiguration config;
+        static public DiscordSocketClient client;
+        static DateTime startTime;
+        static private bool suspendLog;
 
-        public Program()
+        #region Constructor and Main
+        static Program()
         {
-            //making sure only one bot is running at a time
+            //setting up the config file
+            var builder = new ConfigurationBuilder().SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("config.json");
+            config = builder.Build();
+
             Process[] processlist = Process.GetProcesses();
             foreach (Process theprocess in processlist)
             {
@@ -41,14 +46,25 @@ namespace Jovian
             client.Ready += Client_Ready;
             client.MessageReceived += MessageReceivedAsync;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-
-            //setting up the config file
-            var builder = new ConfigurationBuilder().SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("config.json");
-            config = builder.Build();
         }
 
-        private async void CurrentDomain_ProcessExit(object? sender, EventArgs e)
+        [STAThread]
+        public static async Task Main(string[] args)
+        {
+            try
+            {
+                await client.LoginAsync(TokenType.Bot, config["Token"]);
+                await client.StartAsync();
+
+                await Task.Delay(-1);
+            }catch (Exception ex)
+            {
+                await LogError(ex);
+            }
+        }
+        #endregion
+
+        private static async void CurrentDomain_ProcessExit(object? sender, EventArgs e)
         {
             try
             {
@@ -63,7 +79,7 @@ namespace Jovian
             }
         }
 
-        private async Task MessageReceivedAsync(SocketMessage message)
+        private static async Task MessageReceivedAsync(SocketMessage message)
         {
             //This ensures we don't loop things by responding to ourselves (as the bot)
             if (message.Author.Id == client.CurrentUser.Id)
@@ -71,49 +87,42 @@ namespace Jovian
 
             if (message.Content.StartsWith('.'))
             {
-                string command = message.Content.TrimStart('.');
-                switch (command.Split(' ')[0].ToLower())
+                string commandWithArgs = message.Content.TrimStart('.', ' ');
+                string args = string.Join(' ', commandWithArgs.Split(' ').Skip(1));
+                string command = string.Join("", commandWithArgs.Split(' ').Take(1));
+                //switch (command.Split(' ')[0].ToLower())
+                //{
+                //    case "snippet":
+                //    case "helloworld":
+                //    case "hellosnippet":
+                //    case "helloworldsnippet":
+                //        await SendCodeSnippet(command);
+                //        break;
+                //    case "clearmessages":
+                //        await RemoveMessages();
+                //        break;
+                //    default:
+                //        await SendMessage($"I dont know what you mean by {command} 🤷");
+                //        break;
+                //}
+                foreach (DotCommand dotCommand in DotCommands.Commands)
                 {
-                    case "snippet":
-                    case "helloworld":
-                    case "hellosnippet":
-                    case "helloworldsnippet":
-                        await SendCodeSnippet(command);
+                    if (dotCommand == command)
+                    {
+                        dotCommand.Invoke(args);
                         break;
-#if DEBUG
-                    case "clearmessages":
-                        await RemoveMessages();
-                        break;
-#endif
-                    default:
-                        await SendMessage($"I dont know what you mean by {command} 🤷");
-                        break;
+                    }
                 }
             }
         }
 
-        [STAThread]
-        public static Task Main(string[] args) => new Program().Main();
-        public async Task Main()
-        {
-            try
-            {
-                await client.LoginAsync(TokenType.Bot, config["Token"]);
-                await client.StartAsync();
 
-                await Task.Delay(-1);
-            }catch (Exception ex)
-            {
-                await LogError(ex);
-            }
-        }
-
-        private async Task Client_Ready()
+        private static async Task Client_Ready()
         {
             await SendMessage("I'm online!🥳");
         }
 
-        Task Log(LogMessage msg)
+        static Task Log(LogMessage msg)
         {
             if (!suspendLog)
             {
@@ -138,7 +147,7 @@ namespace Jovian
             return Task.CompletedTask;
         }
 
-        public async Task SendMessage(string message)
+        public static async Task SendMessage(string message)
         {
             if ((await client.GetChannelAsync(968176792751976490)) is IMessageChannel channel)
             {
@@ -146,7 +155,7 @@ namespace Jovian
             }
         }
 
-        public async Task RemoveMessages()
+        public static async Task RemoveMessages()
         {
             if ((await client.GetChannelAsync(968176792751976490)) is IMessageChannel channel)
             {
@@ -164,7 +173,7 @@ namespace Jovian
             }
         }
 
-        public async Task SendCodeSnippet(string message)
+        public static async Task SendCodeSnippet(string message)
         {
             string[] args = message.Split(' ').Skip(1).ToArray();
             string s = "";
