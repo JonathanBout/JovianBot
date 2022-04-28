@@ -20,14 +20,9 @@ namespace Jovian
             Commands.Add(new DotCommand(async x => await Program.SendMessage(Format.BlockQuote(GetHelpString(Find(x)))), "Help Command. Use this to view help for all or for a specific command.", "help", "all", "commands"));
             Commands.Add(new DotCommand(async x => await Program.RemoveMessages(), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
             Commands.Add(new DotCommand(async x => await Program.MakePoll(x), "Makes a poll with up to nine options.", "poll", "questions", "question"));
-            if (Environment.MachineName == "raspberryj")
-            {
-                Commands.Add(new DotCommand(x =>
-                {
-                    string cmdText = "sudo killall dotnet";
-                    Process.Start("CMD.exe", cmdText);
-                }, "Takes the bot offline.", "shutdown"));
-            }
+            Commands.Add(new DotCommand(async x => await Program.Reconnect(), "Reconnects the bot.", "reconnect"));
+            Commands.Add(new DotCommand(async x => await Program.SendMessage($"Latency: {Program.Latency()} ms"), "Returns the latency of the bot.", "latency", "respondtime"));
+            Commands.Add(new DotCommand(x => Environment.Exit(0), "Takes the bot offline.", "shutdown", "shutup", "kill"));
         }
 
         public static string GetHelpString(DotCommand? command = null)

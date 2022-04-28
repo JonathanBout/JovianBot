@@ -63,8 +63,8 @@ namespace Jovian
 
         private static async Task Client_Ready()
         {
-            await SendMessage("I'm online! 🥳");
             botChannel = await client.GetChannelAsync(968176792751976490) as IMessageChannel;
+            await SendMessage("I'm online! 🥳");
         }
         #endregion
 
@@ -72,9 +72,8 @@ namespace Jovian
         {
             try
             {
-                string username = client.CurrentUser?.Username + " " ?? "";
                 await SendMessage($"I'm going offline👋");
-
+                await client.SetStatusAsync(UserStatus.Offline);
                 await client.LogoutAsync();
             }catch (Exception ex)
             {
@@ -82,10 +81,26 @@ namespace Jovian
             }
         }
 
+        public static int Latency()
+        {
+            return client.Latency;
+        }
+
+        public static async Task Reconnect()
+        {
+            await SendMessage("Gimme a sec...");
+            await client.StopAsync();
+            await client.LogoutAsync();
+            await Task.Delay(1000);
+            await client.LoginAsync(TokenType.Bot, config["Token"]);
+            await client.StartAsync();
+            await SendMessage("Done!");
+        }
+
         private static async Task MessageReceivedAsync(SocketMessage message)
         {
             //This ensures we don't loop things by responding to ourselves (as the bot)
-            if (message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
+            if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
                 return;
 
             if (message.Content.StartsWith('.'))
@@ -93,6 +108,7 @@ namespace Jovian
                 string commandWithArgs = message.Content.TrimStart('.', ' ');
                 string args = string.Join(' ', commandWithArgs.Split(' ').Skip(1));
                 string command = string.Join("", commandWithArgs.Split(' ').Take(1));
+                bool didInvoke = false;
                 foreach (DotCommand dotCommand in DotCommands.Commands)
                 {
                     if (dotCommand == command)
@@ -101,12 +117,17 @@ namespace Jovian
                         if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole))
                         {
                             dotCommand.Invoke(args);
+                            didInvoke = true;
                             break;
                         }else
                         {
                             await SendMessage("You do not have permission to send this command.");
                         }
                     }
+                }
+                if (!didInvoke)
+                {
+                    await SendMessage($"I dont know what you mean by '{command}' 🤷");
                 }
             }
             return;
@@ -197,11 +218,7 @@ namespace Jovian
                 await Log("Removing all messages. this will take some time.", false);
                 IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
                 suspendLog = true;
-                await foreach (IMessage mes in messages.Flatten())
-                {
-                    await mes.DeleteAsync();
-                    await Log(".", false);
-                }
+                await messages.Flatten().ForEachAsync(async x => await x.DeleteAsync());
                 suspendLog = false;
                 await Log("");
                 await Log("Done!");
