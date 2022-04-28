@@ -175,7 +175,7 @@ namespace Jovian
 
         public static async Task SendCodeSnippet(string message)
         {
-            string[] args = message.Split(' ').Skip(1).ToArray();
+            string[] args = message.Split(' ').ToArray();
             string s = "";
             switch (args[0].ToLower())
             {
