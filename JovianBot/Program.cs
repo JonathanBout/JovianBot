@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using RestSharp;
 
 namespace Jovian
 {
@@ -42,9 +43,11 @@ namespace Jovian
             client = new DiscordSocketClient();
             client.Log += Log;
             client.Ready += Client_Ready;
+            client.ButtonExecuted += Client_ButtonExecuted;
             client.MessageReceived += MessageReceivedAsync;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
         }
+
 
         [STAThread]
         public static async Task Main(string[] args)
@@ -91,10 +94,30 @@ namespace Jovian
             await SendMessage("Gimme a sec...");
             await client.StopAsync();
             await client.LogoutAsync();
-            await Task.Delay(1000);
+            await Task.Delay(500);
             await client.LoginAsync(TokenType.Bot, config["Token"]);
             await client.StartAsync();
             await SendMessage("Done!");
+        }
+
+        public static async Task Shutdown()
+        {
+            var builder = new ComponentBuilder().WithButton("Ok", "okbutton", ButtonStyle.Danger).WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary);
+            await SendMessage("Are u sure you want to shut me down?😟", builder.Build());
+        }
+        private static async Task Client_ButtonExecuted(SocketMessageComponent arg)
+        {
+            switch (arg.Data.CustomId)
+            {
+                case "okbutton":
+                    await arg.UpdateAsync(x => { x.Components = new ComponentBuilder().WithButton("Ok", "okbutton", ButtonStyle.Danger, disabled: true).WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary, disabled: true).Build(); x.Content = $"{arg.User.Mention} shut me down 😥"; });
+                    Environment.Exit(0);
+                    break;
+                case "cancelbutton":
+                    await arg.UpdateAsync(x => { x.Components = new ComponentBuilder().WithButton("Ok", "okbutton", ButtonStyle.Danger, disabled: true).WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary, disabled: true).Build(); x.Content = $"Shutdown cancelled. Phew 😌"; });
+                    break;
+            }
+            return;
         }
 
         private static async Task MessageReceivedAsync(SocketMessage message)
@@ -162,9 +185,14 @@ namespace Jovian
 
         public static async Task<IUserMessage?> SendMessage(string message)
         {
+            return await SendMessage(message, null);
+        }
+
+        public static async Task<IUserMessage?> SendMessage(string message, MessageComponent? components)
+        {
             if (botChannel is IMessageChannel channel)
             {
-                return await channel.SendMessageAsync(message);
+                return await channel.SendMessageAsync(message, components: components);
             }
             return default;
         }
@@ -203,11 +231,17 @@ namespace Jovian
                         _ => ""
 
                     };
-                    if (Emoji.TryParse(emote, out Emoji result))
-                    {
-                        await msg.AddReactionAsync(result);
-                    }
+
+                    await msg.AddReaction(emote);
                 }
+            }
+        }
+
+        public static async Task AddReaction(this IUserMessage msg, string emote)
+        {
+            if (Emoji.TryParse(emote, out Emoji result))
+            {
+                await msg.AddReactionAsync(result);
             }
         }
 
@@ -223,8 +257,7 @@ namespace Jovian
                     await message.DeleteAsync();
                 }
                 suspendLog = false;
-                await Log("");
-                await Log("Done!");
+                await Log("\nDone!");
             }
         }
 
@@ -237,7 +270,7 @@ namespace Jovian
                 "c++"           => Format.Code("#include <format>\n\nint main()\n{\n\tstd::print(\"Hello World!\");\n\treturn 0;\n}"),
                 "c#"            => Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "csharp"),
                 
-                "python"        => Format.Code("print('Hello, world!')", "python"),
+                "python"        => Format.Code("print('Hello World!')", "python"),
                 "nohtyp"        => Format.Code(")\"!dlroW olleH\"(tnirp"),
                 
                 "go"            => Format.Code("package main\nimport\"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World!\")\n}", "go"),
@@ -251,6 +284,8 @@ namespace Jovian
                 "bash"          => Format.Code("echo \"Hello World!\"", "bash"),
                 "perl"          => Format.Code("print \"Hello World!\\n\";", "perl"),
                 "tcl" or "ruby" => Format.Code("puts \"Hello World!\"", "ruby"),
+                "english"       => Format.Code("Hello World!"),
+                "dutch"         => Format.Code("Hallo Wereld!"),
                 _ => "",
             };
             if (s != "")
@@ -282,6 +317,34 @@ namespace Jovian
             }
             if (!string.IsNullOrWhiteSpace(s.Trim())) retval.Add(s.Trim());
             return retval.Select(x => x.Trim('\"', '\'')).ToArray();
+        }
+
+        public static async Task<string> RequestRandomJoke(string args)
+        {
+            string joke = "";
+            int.TryParse(args, out int amount);
+            amount = Math.Clamp(amount, 1, 5);
+            try
+            {
+                do
+                {
+                    RestClient client = new RestClient("https://icanhazdadjoke.com/");
+                    RestRequest request = new RestRequest();
+                    request.AddHeader("Accept", "application/json");
+                    RestResponse response = await client.GetAsync(request);
+                    joke += (JsonConvert.DeserializeObject<JokeObject>(response.Content ?? "")?.Joke ?? "No joke found 🤷") + "\r\n\n";
+                    amount--;
+                } while (amount > 0);
+            }catch (Exception ex)
+            {
+                joke = $"Error finding joke: {ex.Message}";
+            }
+            return joke;
+        }
+
+        class JokeObject
+        {
+            public string? Joke { get; set; }
         }
     }
 }

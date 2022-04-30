@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using RestSharp;
 
 namespace Jovian
 {
@@ -22,7 +23,8 @@ namespace Jovian
             Commands.Add(new DotCommand(async x => await Program.MakePoll(x), "Makes a poll with up to nine options.", "poll", "questions", "question"));
             Commands.Add(new DotCommand(async x => await Program.Reconnect(), "Reconnects the bot.", "reconnect"));
             Commands.Add(new DotCommand(async x => await Program.SendMessage($"Latency: {Program.Latency()} ms"), "Returns the latency of the bot.", "latency", "respondtime"));
-            Commands.Add(new DotCommand(x => Environment.Exit(0), "Takes the bot offline.", "shutdown", "shutup", "kill"));
+            Commands.Add(new DotCommand(async x => await Program.Shutdown(), "Takes the bot offline.", "shutdown", "shutup", "kill"));
+            Commands.Add(new DotCommand(async x => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
         }
 
         public static string GetHelpString(DotCommand? command = null)
