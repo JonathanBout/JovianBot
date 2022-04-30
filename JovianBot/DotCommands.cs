@@ -17,24 +17,29 @@ namespace Jovian
         //initialize the commands.
         static DotCommands()
         {
-            Commands.Add(new DotCommand(async x => await Program.SendCodeSnippet(x), "Sends a code snippet to print 'Hello World!' in the specified language.", "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"));
-            Commands.Add(new DotCommand(async x => await Program.SendMessage(Format.BlockQuote(GetHelpString(Find(x)))), "Help Command. Use this to view help for all or for a specific command.", "help", "all", "commands"));
-            Commands.Add(new DotCommand(async x => await Program.RemoveMessages(), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
-            Commands.Add(new DotCommand(async x => await Program.MakePoll(x), "Makes a poll with up to nine options.", "poll", "questions", "question"));
-            Commands.Add(new DotCommand(async x => await Program.Reconnect(), "Reconnects the bot.", "reconnect"));
-            Commands.Add(new DotCommand(async x => await Program.SendMessage($"Latency: {Program.Latency()} ms"), "Returns the latency of the bot.", "latency", "respondtime"));
-            Commands.Add(new DotCommand(async x => await Program.Shutdown(), "Takes the bot offline.", "shutdown", "shutup", "kill"));
-            Commands.Add(new DotCommand(async x => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.SendCodeSnippet(x), "Sends a code snippet to print 'Hello World!' in the specified language.", "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(y, Find(x)))), "Help Command. Use this to view help for all or for a specific command.", "help", "all", "commands"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.Find("Admin"), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to nine options.", "poll", "questions", "question"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.Reconnect(), "Reconnects the bot.", "reconnect"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage($"Latency: {Program.Latency()} ms"), "Returns the latency of the bot.", "latency", "respondtime"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.Shutdown(), ServerRoles.Find("Manager"), "Takes the bot offline.", "shutdown", "shutup", "kill"));
+            Commands.Add(new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetStats()), "Shows some statistics about this server.", "serverstats", "server", "serverinfo"));
         }
 
-        public static string GetHelpString(DotCommand? command = null)
+        public static string GetHelpString(SocketUser user, DotCommand? command = null)
         {
             if (command is null)
             {
                 string full = Format.Bold("All Commands:");
                 foreach (DotCommand dotCommand in Commands)
                 {
-                    full += $"\n{Format.Bold("." + dotCommand.FirstKey)}\n{dotCommand.Description}";
+                    if (dotCommand.MandatoryRole is null || ((SocketGuildUser)user).Roles.Contains(dotCommand.MandatoryRole) ||
+                        ((SocketGuildUser)user).Roles.Contains(ServerRoles.Find("Admin")))
+                    {
+                        full += $"\n{Format.Bold("." + dotCommand.FirstKey)}\n{dotCommand.Description}";
+                    }
                 }
                 return full;
             }
@@ -50,29 +55,29 @@ namespace Jovian
     public class DotCommand
     {
         string[] Keys { get; }
-        Action<string> Function { get; }
+        Action<string, SocketUser> Function { get; }
         public string Description { get; }
         public SocketRole? MandatoryRole = null;
 
         public string FirstKey => Keys[0];
-        public DotCommand(Action<string> function, string description, params string[] keys)
+        public DotCommand(Action<string, SocketUser> function, string description, params string[] keys)
         {
             Keys = keys;
             Description = description;
-            Function = (Action<string>) function.Clone();
+            Function = (Action<string, SocketUser>) function.Clone();
         }
 
-        public DotCommand(Action<string> function, SocketRole mandatoryRole, string description, params string[] keys)
+        public DotCommand(Action<string, SocketUser> function, SocketRole? mandatoryRole, string description, params string[] keys)
         {
             Keys = keys;
             Description = description;
             MandatoryRole = mandatoryRole;
-            Function = (Action<string>) function.Clone();
+            Function = (Action<string, SocketUser>) function.Clone();
         }
 
-        public void Invoke(string args)
+        public void Invoke(string args, SocketUser user)
         {
-            Function.Invoke(args);
+            Function.Invoke(args, user);
         }
 
         public bool ContainsKey(string key)
@@ -115,5 +120,13 @@ namespace Jovian
             return base.GetHashCode();
         }
         #endregion
+    }
+
+    public static class ServerRoles
+    {
+        public static SocketRole? Find(string roleName)
+        {
+            return (SocketRole?)Program.AllRoles.FirstOrDefault(x => x?.Name.ToLower() == roleName.ToLower(), null);
+        }
     }
 }

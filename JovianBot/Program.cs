@@ -22,6 +22,8 @@ namespace Jovian
         static public DiscordSocketClient client;
         static private bool suspendLog;
         static IMessageChannel? botChannel;
+        static IGuild Server => client.GetGuild(968156929744597062);
+        public static IRole[] AllRoles => Server.Roles.ToArray();
 
         #region Constructor and Main
         static Program()
@@ -56,6 +58,7 @@ namespace Jovian
             {
                 await client.LoginAsync(TokenType.Bot, config["Token"]);
                 await client.StartAsync();
+                
 
                 await Task.Delay(-1);
             }catch (Exception ex)
@@ -132,14 +135,15 @@ namespace Jovian
                 string args = string.Join(' ', commandWithArgs.Split(' ').Skip(1));
                 string command = string.Join("", commandWithArgs.Split(' ').Take(1));
                 bool didInvoke = false;
+
                 foreach (DotCommand dotCommand in DotCommands.Commands)
                 {
                     if (dotCommand == command)
                     {
                         var userRoles = ((SocketGuildUser)message.Author).Roles;
-                        if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole))
+                        if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole) || userRoles.Any(x => x.Name == "Admin"))
                         {
-                            dotCommand.Invoke(args);
+                            dotCommand.Invoke(args, message.Author);
                             didInvoke = true;
                             break;
                         }else
@@ -155,8 +159,6 @@ namespace Jovian
             }
             return;
         }
-
-
 
         static Task Log(LogMessage msg)
         {
@@ -340,6 +342,17 @@ namespace Jovian
                 joke = $"Error finding joke: {ex.Message}";
             }
             return joke;
+        }
+
+        public static async Task<string> GetStats()
+        {
+
+            IGuildUser[] users = (await Server.GetUsersAsync()).ToArray();
+            
+            int totalUsers = users.Where(user => !user.IsBot).Count();
+            int online = users.Where(user => user.Status == UserStatus.Online).Count();
+            int offline = users.Where(user => user.Status == UserStatus.Offline).Count();
+            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Users: {totalUsers}\nOnline Users: {online}\nOffline Users: {offline}");
         }
 
         class JokeObject
