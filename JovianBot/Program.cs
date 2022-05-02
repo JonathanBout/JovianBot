@@ -28,6 +28,8 @@ namespace Jovian
         public static IRole[] AllRoles => Server.Roles.ToArray();
 
         static readonly IHardwareInfo hardware = new HardwareInfo();
+        static CPU RaspiCPU => new CPU() { NumberOfCores = 4, Name = "Broadcom BCM2837 @ 1.2GHz", MaxClockSpeed = 1200000000, Manufacturer = "Broadcom" };
+        static MemoryStatus RaspiMemStatus => new MemoryStatus() { TotalPhysical = 1000000000 };
 
         #region Constructor and Main
         static Program()
@@ -367,15 +369,14 @@ namespace Jovian
                 retVal += $"\n" +
                     $"CPU {i + 1}:\n\t" +
                         $"Name: {cpu.Name}\n\t" +
-                        $"Manufacturer: {(string.IsNullOrEmpty(cpu.Manufacturer)?"Unknown":cpu.Manufacturer)}\n\t" +
-                        $"Core(s): {(cpu.NumberOfCores < 1?"--" : cpu.NumberOfCores)}\n\t" +
-                        $"Logical Processor(s): {(cpu.NumberOfLogicalProcessors < 1?"--":cpu.NumberOfLogicalProcessors)}\n\t" +
-                        $"Clock Speed: {(cpu.CurrentClockSpeed < 1000?"--" : cpu.CurrentClockSpeed / 1000)}" +
-                        $"/{(cpu.MaxClockSpeed < 1000 ? "--" : cpu.MaxClockSpeed / 1000)} GHz";
+                        $"Manufacturer: {(string.IsNullOrEmpty(cpu.Manufacturer)?RaspiCPU.Manufacturer:cpu.Manufacturer)}\n\t" +
+                        $"Core(s): {(cpu.NumberOfCores < 1?RaspiCPU.NumberOfCores : cpu.NumberOfCores)}\n\t" +
+                        $"Clock Speed: {(cpu.CurrentClockSpeed < 1000?"--" : (cpu.CurrentClockSpeed / 1000m).FormatValue("Hz"))}" +
+                        $"/{(cpu.MaxClockSpeed < 1000 ? RaspiCPU.MaxClockSpeed : cpu.MaxClockSpeed / 1000m).FormatValue("Hz")}";
             }
             retVal += $"\n{Format.Bold("Memory:")}\n" +
-                $"Physical Memory: {hardware.MemoryStatus.AvailablePhysical.FormatBytes()}" +
-                $"/{hardware.MemoryStatus.TotalPhysical.FormatBytes()}";
+                $"Physical Memory: {hardware.MemoryStatus.AvailablePhysical.FormatValue()}" +
+                $"/{hardware.MemoryStatus.TotalPhysical.FormatValue()}";
             
             return Task.FromResult(Format.BlockQuote(retVal));
         }
@@ -385,17 +386,22 @@ namespace Jovian
             public string? Joke { get; set; }
         }
 
-        private static string FormatBytes(this ulong bytes)
+        private static string FormatValue(this ulong value, string letter = "B", ulong divisionStep = 1024)
         {
-            string[] Suffix = { "B", "KB", "MB", "GB", "TB" };
+            return FormatValue(value, letter, divisionStep, "0");
+        }
+
+        private static string FormatValue(this decimal value, string letter = "B", decimal divisionStep = 1024.0m, string format = "0.00")
+        {
+            string[] Suffix = { "", "K", "M", "G", "T" };
             int i;
-            double dblSByte = bytes;
-            for (i = 0; i < Suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+            decimal dblSByte = value;
+            for (i = 0; i < Suffix.Length && value >= divisionStep; i++, value /= divisionStep)
             {
-                dblSByte = bytes / 1024.0;
+                dblSByte = value / divisionStep;
             }
 
-            return string.Format("{0:0.##} {1}", dblSByte, Suffix[i]);
+            return string.Format($"{{0:{format}}} {{1}}", dblSByte, Suffix[i] + letter);
         }
     }
 }
