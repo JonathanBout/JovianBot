@@ -237,7 +237,7 @@ namespace Jovian
 
                     };
 
-                    _ = msg.AddReaction(emote);
+                    await msg.AddReaction(emote);
                 }
             }
         }
