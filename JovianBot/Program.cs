@@ -364,9 +364,18 @@ namespace Jovian
             for (int i = 0; i < CPUs.Count; i++)
             {
                 CPU cpu = CPUs[i];
-                retVal += $"\nCPU {i + 1}:\n\tName: {cpu.Name}\n\tManufacturer: {cpu.Manufacturer}\n\tCore(s): {cpu.NumberOfCores}\n\tLogical Processor(s): {cpu.NumberOfLogicalProcessors}\n\tClock Speed: {cpu.CurrentClockSpeed / 1000} /{cpu.MaxClockSpeed / 1000} GHz";
+                retVal += $"\n" +
+                    $"CPU {i + 1}:\n\t" +
+                        $"Name: {cpu.Name}\n\t" +
+                        $"Manufacturer: {(string.IsNullOrEmpty(cpu.Manufacturer)?"Unknown":cpu.Manufacturer)}\n\t" +
+                        $"Core(s): {(cpu.NumberOfCores < 1?"--" : cpu.NumberOfCores)}\n\t" +
+                        $"Logical Processor(s): {(cpu.NumberOfLogicalProcessors < 1?"--":cpu.NumberOfLogicalProcessors)}\n\t" +
+                        $"Clock Speed: {(cpu.CurrentClockSpeed < 1000?"--" : cpu.CurrentClockSpeed / 1000)}" +
+                        $"/{(cpu.MaxClockSpeed < 1000 ? "--" : cpu.MaxClockSpeed / 1000)} GHz";
             }
-            retVal += $"\n{Format.Bold("Memory:")}\nPhysical Memory: {hardware.MemoryStatus.AvailablePhysical.FormatBytes()}/{hardware.MemoryStatus.TotalPhysical.FormatBytes()}";// hardware.MemoryStatus.
+            retVal += $"\n{Format.Bold("Memory:")}\n" +
+                $"Physical Memory: {hardware.MemoryStatus.AvailablePhysical.FormatBytes()}" +
+                $"/{hardware.MemoryStatus.TotalPhysical.FormatBytes()}";
             
             return Task.FromResult(Format.BlockQuote(retVal));
         }
