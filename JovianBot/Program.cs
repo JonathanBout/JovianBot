@@ -13,6 +13,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using RestSharp;
+using System.Runtime.InteropServices;
+using Hardware.Info;
 
 namespace Jovian
 {
@@ -24,6 +26,8 @@ namespace Jovian
         static IMessageChannel? botChannel;
         static IGuild Server => client.GetGuild(968156929744597062);
         public static IRole[] AllRoles => Server.Roles.ToArray();
+
+        static readonly IHardwareInfo hardware = new HardwareInfo();
 
         #region Constructor and Main
         static Program()
@@ -48,6 +52,7 @@ namespace Jovian
             client.ButtonExecuted += Client_ButtonExecuted;
             client.MessageReceived += MessageReceivedAsync;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+            hardware.RefreshAll();
         }
 
 
@@ -67,6 +72,7 @@ namespace Jovian
             }
         }
 
+
         private static async Task Client_Ready()
         {
             botChannel = await client.GetChannelAsync(968176792751976490) as IMessageChannel;
@@ -85,11 +91,6 @@ namespace Jovian
             {
                 await LogError(ex);
             }
-        }
-
-        public static int Latency()
-        {
-            return client.Latency;
         }
 
         public static async Task Reconnect()
@@ -185,18 +186,18 @@ namespace Jovian
             return Task.CompletedTask;
         }
 
-        public static async Task<IUserMessage?> SendMessage(string message)
+        public static async Task<IUserMessage> SendMessage(string message)
         {
             return await SendMessage(message, null);
         }
 
-        public static async Task<IUserMessage?> SendMessage(string message, MessageComponent? components)
+        public static async Task<IUserMessage> SendMessage(string message, MessageComponent? components)
         {
             if (botChannel is IMessageChannel channel)
             {
                 return await channel.SendMessageAsync(message, components: components);
             }
-            return default;
+            throw new NullReferenceException("botChannel was null.");
         }
 
         public static async Task MakePoll(string args)
@@ -234,7 +235,7 @@ namespace Jovian
 
                     };
 
-                    await msg.AddReaction(emote);
+                    _ = msg.AddReaction(emote);
                 }
             }
         }
@@ -270,7 +271,7 @@ namespace Jovian
             {
                 "c"             => Format.Code("#include <stdio.h>\n\nint main()\n{\n\tprintf(\"Hello World!\");\n\treturn 0;\n}", "c"),
                 "c++"           => Format.Code("#include <format>\n\nint main()\n{\n\tstd::print(\"Hello World!\");\n\treturn 0;\n}"),
-                "c#"            => Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "csharp"),
+                "c#"            => Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "CSharp"),
                 
                 "python"        => Format.Code("print('Hello World!')", "python"),
                 "nohtyp"        => Format.Code(")\"!dlroW olleH\"(tnirp"),
@@ -291,7 +292,7 @@ namespace Jovian
                 _ => "",
             };
             if (s != "")
-                await SendMessage($"Hello World code snippet ({args[0]}): {s.ToLower()}");
+                await SendMessage($"Hello World code snippet ({args[0].ToUpper()}): {s}");
             else
                 await SendMessage("I don't know that language (yet)");
         }
@@ -349,15 +350,43 @@ namespace Jovian
 
             IGuildUser[] users = (await Server.GetUsersAsync()).ToArray();
             
-            int totalUsers = users.Where(user => !user.IsBot).Count();
+            int totalBots = users.Where(user => user.IsBot).Count();
             int online = users.Where(user => user.Status == UserStatus.Online).Count();
             int offline = users.Where(user => user.Status == UserStatus.Offline).Count();
-            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Users: {totalUsers}\nOnline Users: {online}\nOffline Users: {offline}");
+            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Users: {users.Length} ({totalBots} bots)\nOnline: {online}\nOffline: {offline}");
+        }
+        public static Task<string> GetBotStats()
+        {
+            string retVal = $"{Format.Bold($"Bot Stats{(Debugger.IsAttached?" [DEBUG MODE]" : "")}:")}\nOperating System: {Environment.OSVersion.VersionString}";
+            hardware.RefreshCPUList();
+            hardware.RefreshMemoryStatus();
+            List<CPU> CPUs = hardware.CpuList;
+            for (int i = 0; i < CPUs.Count; i++)
+            {
+                CPU cpu = CPUs[i];
+                retVal += $"\nCPU {i + 1}:\n\tName: {cpu.Name}\n\tManufacturer: {cpu.Manufacturer}\n\tCore(s): {cpu.NumberOfCores}\n\tLogical Processor(s): {cpu.NumberOfLogicalProcessors}\n\tClock Speed: {cpu.CurrentClockSpeed / 1000} /{cpu.MaxClockSpeed / 1000} GHz";
+            }
+            retVal += $"\n{Format.Bold("Memory:")}\nPhysical Memory: {hardware.MemoryStatus.AvailablePhysical.FormatBytes()}/{hardware.MemoryStatus.TotalPhysical.FormatBytes()}";// hardware.MemoryStatus.
+            
+            return Task.FromResult(Format.BlockQuote(retVal));
         }
 
         class JokeObject
         {
             public string? Joke { get; set; }
+        }
+
+        private static string FormatBytes(this ulong bytes)
+        {
+            string[] Suffix = { "B", "KB", "MB", "GB", "TB" };
+            int i;
+            double dblSByte = bytes;
+            for (i = 0; i < Suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+            {
+                dblSByte = bytes / 1024.0;
+            }
+
+            return string.Format("{0:0.##} {1}", dblSByte, Suffix[i]);
         }
     }
 }

@@ -22,10 +22,10 @@ namespace Jovian
             Commands.Add(new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.Find("Admin"), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
             Commands.Add(new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to nine options.", "poll", "questions", "question"));
             Commands.Add(new DotCommand(async (x, y) => await Program.Reconnect(), "Reconnects the bot.", "reconnect"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage($"Latency: {Program.Latency()} ms"), "Returns the latency of the bot.", "latency", "respondtime"));
             Commands.Add(new DotCommand(async (x, y) => await Program.Shutdown(), ServerRoles.Find("Manager"), "Takes the bot offline.", "shutdown", "shutup", "kill"));
             Commands.Add(new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
             Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetStats()), "Shows some statistics about this server.", "serverstats", "server", "serverinfo"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "botstats", "bot", "botinfo"));
         }
 
         public static string GetHelpString(SocketUser user, DotCommand? command = null)
