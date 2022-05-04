@@ -269,13 +269,14 @@ namespace Jovian
         public static async Task SendCodeSnippet(string message)
         {
             string[] args = message.Split(' ').ToArray();
-            string s = args[0].ToLower() switch
+            string s = string.Join(" ", args).ToLower() switch
             {
                 "c"             => Format.Code("#include <stdio.h>\n\nint main()\n{\n\tprintf(\"Hello World!\");\n\treturn 0;\n}", "c"),
-                "c++"           => Format.Code("#include <format>\n\nint main()\n{\n\tstd::print(\"Hello World!\");\n\treturn 0;\n}"),
-                "c#"            => Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "CSharp"),
+                "c++"           => Format.Code("#include <format>\n\nint main()\n{\n\tstd::print(\"Hello World!\");\n\treturn 0;\n}", "cpp") + "\nor\n" + Format.Code("#include <iostream>\n\nint main()\n{\n\tstd::cout << \"Hello World!\" << std::endl;\n\treturn 0;\n}", "cpp"),
+                "c#"            => Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "cs"),
                 
-                "python"        => Format.Code("print('Hello World!')", "python"),
+                "visual basic"  => Format.Code("Module HelloWorld\n\n\tSub Main()\n\t\tConsole.WriteLine(\"Hello World!\")\n\t\tConsole.ReadKey()\n\n\tEnd Sub\n\nEnd Module", "vb"), 
+                "python"        => Format.Code("print('Hello World!')", "py"),
                 "nohtyp"        => Format.Code(")\"!dlroW olleH\"(tnirp"),
                 
                 "go"            => Format.Code("package main\nimport\"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World!\")\n}", "go"),
@@ -283,18 +284,19 @@ namespace Jovian
                 "fortran"       => Format.Code("program HelloWorld\n\tprint *, \"Hello World!\"\nend program HelloWorld", "fortran"),
                 
                 "java"          => Format.Code("class HelloWorld {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println(\"Hello World!\");\n\t}\n}", "java"),
-                "javascript"    => Format.Code("console.log('Hello World');", "javascript") + "\nor\n" + Format.Code("alert(\"Hello World!\");", "javascript"),
+                "javascript"    => Format.Code("console.log('Hello World!');", "javascript") + "\nor\n" + Format.Code("alert(\"Hello World!\");", "javascript"),
                 
                 "powershell"    => Format.Code("'Hello World!'", "powershell"),
                 "bash"          => Format.Code("echo \"Hello World!\"", "bash"),
                 "perl"          => Format.Code("print \"Hello World!\\n\";", "perl"),
                 "tcl" or "ruby" => Format.Code("puts \"Hello World!\"", "ruby"),
+
                 "english"       => Format.Code("Hello World!"),
                 "dutch"         => Format.Code("Hallo Wereld!"),
                 _ => "",
             };
             if (s != "")
-                await SendMessage($"Hello World code snippet ({args[0].ToUpper()}): {s}");
+                await SendMessage($"Hello World code snippet ({string.Join(" ", args).ToUpper()}):\n{s}");
             else
                 await SendMessage("I don't know that language (yet)");
         }
@@ -355,7 +357,7 @@ namespace Jovian
             int totalBots = users.Where(user => user.IsBot).Count();
             int online = users.Where(user => user.Status == UserStatus.Online).Count();
             int offline = users.Where(user => user.Status == UserStatus.Offline).Count();
-            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Users: {users.Length} ({totalBots} bots)\nOnline: {online}\nOffline: {offline}");
+            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Users: {users.Length} ({totalBots} bot(s))\nOnline: {online}\nOffline: {offline}");
         }
         public static Task<string> GetBotStats()
         {
@@ -371,12 +373,14 @@ namespace Jovian
                         $"Name: {cpu.Name}\n\t" +
                         $"Manufacturer: {(string.IsNullOrEmpty(cpu.Manufacturer)?RaspiCPU.Manufacturer:cpu.Manufacturer)}\n\t" +
                         $"Core(s): {(cpu.NumberOfCores < 1?RaspiCPU.NumberOfCores : cpu.NumberOfCores)}\n\t" +
-                        $"Clock Speed: {(cpu.CurrentClockSpeed < 1000?"--" : (cpu.CurrentClockSpeed / 1000m).FormatValue("Hz"))}" +
-                        $"/{(cpu.MaxClockSpeed < 1000 ? RaspiCPU.MaxClockSpeed : cpu.MaxClockSpeed / 1000m).FormatValue("Hz")}";
+                        $"Clock Speed: {(cpu.CurrentClockSpeed < 10?"--" : (cpu.CurrentClockSpeed / 1000m).FormatValue("Hz"))}" +
+                        $"/{(cpu.MaxClockSpeed < 10 ? RaspiCPU.MaxClockSpeed : cpu.MaxClockSpeed / 1000m).FormatValue("Hz")}";
             }
             retVal += $"\n{Format.Bold("Memory:")}\n" +
                 $"Physical Memory: {hardware.MemoryStatus.AvailablePhysical.FormatValue()}" +
                 $"/{hardware.MemoryStatus.TotalPhysical.FormatValue()}";
+
+            retVal += Format.Bold($"\nLatency: {client.Latency} ms");
             
             return Task.FromResult(Format.BlockQuote(retVal));
         }
