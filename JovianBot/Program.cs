@@ -29,7 +29,6 @@ namespace Jovian
 
         static readonly IHardwareInfo hardware = new HardwareInfo();
         static CPU RaspiCPU => new CPU() { NumberOfCores = 4, Name = "Broadcom BCM2837 @ 1.2GHz", MaxClockSpeed = 1200000000, Manufacturer = "Broadcom" };
-        static MemoryStatus RaspiMemStatus => new MemoryStatus() { TotalPhysical = 1000000000 };
 
         #region Constructor and Main
         static Program()
@@ -44,7 +43,9 @@ namespace Jovian
             {
                 if (theprocess.ProcessName == Process.GetCurrentProcess().ProcessName && theprocess.Id != Environment.ProcessId)
                 {
-                    Process.GetCurrentProcess().Kill();
+                    Log("The bot is running already!");
+                    Thread.Sleep(100);
+                    Environment.Exit(0);
                 }
             }
             //setting up the Discord Client and some events
@@ -54,9 +55,18 @@ namespace Jovian
             client.ButtonExecuted += Client_ButtonExecuted;
             client.MessageReceived += MessageReceivedAsync;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             hardware.RefreshAll();
         }
 
+        private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            await SendMessage(Format.BlockQuote("Exception caught:\n" + ((Exception)e.ExceptionObject).Message));
+            if (Debugger.IsAttached)
+            {
+                throw (Exception)e.ExceptionObject;
+            }
+        }
 
         [STAThread]
         public static async Task Main(string[] args)
@@ -78,6 +88,8 @@ namespace Jovian
         private static async Task Client_Ready()
         {
             botChannel = await client.GetChannelAsync(968176792751976490) as IMessageChannel;
+            await Task.Delay(500);
+            await SetChannelReadonly(false);
             await SendMessage("I'm online! 🥳");
         }
         #endregion
@@ -106,6 +118,13 @@ namespace Jovian
             await SendMessage("Done!");
         }
 
+        public static async Task SetChannelReadonly(bool isReadonly)
+        {
+            if (botChannel is null) return;
+            var perms = new OverwritePermissions(sendMessages: isReadonly ? PermValue.Deny : PermValue.Allow);
+            await ((IGuildChannel)botChannel).AddPermissionOverwriteAsync(ServerRoles.Find("@everyone"), perms);
+        }
+
         public static async Task Shutdown()
         {
             var builder = new ComponentBuilder().WithButton("Ok", "okbutton", ButtonStyle.Danger).WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary);
@@ -116,14 +135,31 @@ namespace Jovian
             switch (arg.Data.CustomId)
             {
                 case "okbutton":
-                    await arg.UpdateAsync(x => { x.Components = new ComponentBuilder().WithButton("Ok", "okbutton", ButtonStyle.Danger, disabled: true).WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary, disabled: true).Build(); x.Content = $"{arg.User.Mention} shut me down 😥"; });
-                    Environment.Exit(0);
+                    if (await ButtonUpdate(arg, $"{arg.User.Mention} shut me down 😥"))
+                    {
+                        await SetChannelReadonly(true);
+                        Environment.Exit(0);
+                    }
                     break;
                 case "cancelbutton":
-                    await arg.UpdateAsync(x => { x.Components = new ComponentBuilder().WithButton("Ok", "okbutton", ButtonStyle.Danger, disabled: true).WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary, disabled: true).Build(); x.Content = $"Shutdown cancelled. Phew 😌"; });
+                    await ButtonUpdate(arg, $"Shutdown cancelled. Phew 😌");
                     break;
             }
             return;
+        }
+
+        static async Task<bool> ButtonUpdate(SocketMessageComponent arg, string content, bool doCheck = true)
+        {
+            if (((SocketGuildUser)arg.User).Roles.Any(x => x == ServerRoles.FindSocketRole("Admin")) || !doCheck || arg.Data.CustomId == "cancelbutton")
+            {
+                await arg.UpdateAsync(x => { x.Components = new ComponentBuilder().WithButton("Ok", "okbutton", ButtonStyle.Danger, disabled: true).WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary, disabled: true).Build(); x.Content = content; });
+                return true;
+            }
+            else
+            {
+                await ButtonUpdate(arg, $"HAHAHAHA user {arg.User.Mention} does not have the rights to shut me down, so i wont 😝", false);
+                return false;
+            }
         }
 
         private static async Task MessageReceivedAsync(SocketMessage message)
@@ -152,6 +188,7 @@ namespace Jovian
                         }else
                         {
                             await SendMessage("You do not have permission to send this command.");
+                            didInvoke = true;
                         }
                     }
                 }
@@ -260,9 +297,13 @@ namespace Jovian
                 await foreach(IMessage message in messages.Flatten())
                 {
                     await message.DeleteAsync();
+                    _ = Log(".", false);
                 }
                 suspendLog = false;
                 await Log("\nDone!");
+                var x = await SendMessage("Cleared it for you!");
+                await Task.Delay(5000);
+                await x.DeleteAsync();
             }
         }
 
@@ -331,21 +372,15 @@ namespace Jovian
             string joke = "";
             int.TryParse(args, out int amount);
             amount = Math.Clamp(amount, 1, 5);
-            try
+            do
             {
-                do
-                {
-                    RestClient client = new RestClient("https://icanhazdadjoke.com/");
-                    RestRequest request = new RestRequest();
-                    request.AddHeader("Accept", "application/json");
-                    RestResponse response = await client.GetAsync(request);
-                    joke += (JsonConvert.DeserializeObject<JokeObject>(response.Content ?? "")?.Joke ?? "No joke found 🤷") + "\r\n\n";
-                    amount--;
-                } while (amount > 0);
-            }catch (Exception ex)
-            {
-                joke = $"Error finding joke: {ex.Message}";
-            }
+                RestClient client = new RestClient("https://icanhazdadjoke.com/");
+                RestRequest request = new RestRequest();
+                request.AddHeader("Accept", "application/json");
+                RestResponse response = await client.GetAsync(request);
+                joke += (JsonConvert.DeserializeObject<JokeObject>(response.Content ?? "")?.Joke ?? "No joke found 🤷") + "\r\n\n";
+                amount--;
+            } while (amount > 0);
             return joke;
         }
 
@@ -353,11 +388,17 @@ namespace Jovian
         {
 
             IGuildUser[] users = (await Server.GetUsersAsync()).ToArray();
-            
-            int totalBots = users.Where(user => user.IsBot).Count();
-            int online = users.Where(user => user.Status == UserStatus.Online).Count();
-            int offline = users.Where(user => user.Status == UserStatus.Offline).Count();
-            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Users: {users.Length} ({totalBots} bot(s))\nOnline: {online}\nOffline: {offline}");
+            int totalUsers = users.Length;
+            int online = 0;
+            int offline = 0;
+            int bots = 0;
+            foreach (IGuildUser user in users)
+            {
+                if (user.IsBot) bots++;
+                else if (user.Status == UserStatus.Online) online++;
+                else if (user.Status == UserStatus.Offline) offline++;
+            }
+            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers} ({bots} bot{(bots == 1? "" : "s")})");//\nOnline: {online}\nOffline: {offline}");
         }
         public static Task<string> GetBotStats()
         {

@@ -19,13 +19,13 @@ namespace Jovian
         {
             Commands.Add(new DotCommand(async (x, y) => await Program.SendCodeSnippet(x), "Sends a code snippet to print 'Hello World!' in the specified language.", "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"));
             Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(y, Find(x)))), "Help Command. Use this to view help for all or for a specific command.", "help", "all", "commands"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.Find("Admin"), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.FindSocketRole("Admin"), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
             Commands.Add(new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to nine options.", "poll", "questions", "question"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.Reconnect(), "Reconnects the bot.", "reconnect"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.Shutdown(), ServerRoles.Find("Manager"), "Takes the bot offline.", "shutdown", "shutup", "kill"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.Reconnect(), ServerRoles.FindSocketRole("Manager"), "Reconnects the bot.", "reconnect"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.Shutdown(), ServerRoles.FindSocketRole("Admin"), "Takes the bot offline.", "shutdown", "shutup", "kill"));
             Commands.Add(new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
             Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetStats()), "Shows some statistics about this server.", "serverstats", "server", "serverinfo"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "botstats", "bot", "botinfo"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "botstats", "bot", "botinfo", "jovian"));
         }
 
         public static string GetHelpString(SocketUser user, DotCommand? command = null)
@@ -43,7 +43,10 @@ namespace Jovian
                 }
                 return full;
             }
-            return $"{command.FirstKey}: {command.Description}";
+            else if (((SocketGuildUser)user).Roles.Contains(command.MandatoryRole))
+                return $"{command.FirstKey}: {command.Description}";
+            else
+                return $"You are not allowed to use that command, but i'll say what it does:\n{command.FirstKey}: {command.Description}";
         }
 
         public static DotCommand? Find(string key)
@@ -88,12 +91,12 @@ namespace Jovian
         #region overrides
         public static bool operator ==(DotCommand command, string key)
         {
-            return command.Keys.Any(x => x == key);
+            return command.Keys.Any(x => x.ToLower() == key.ToLower());
         }
 
         public static bool operator !=(DotCommand command, string key)
         {
-            return !command.Keys.Any(x => x == key);
+            return !(command == key);
         }
 
         public static bool operator ==(DotCommand command, DotCommand command1)
@@ -103,7 +106,7 @@ namespace Jovian
 
         public static bool operator !=(DotCommand command, DotCommand command1)
         {
-            return !command.Keys.Any(x => x == command1.Keys[0]);
+            return command.Keys.Any(x => x != command1.Keys[0]);
         }
 
         public override bool Equals(object? obj)
@@ -124,9 +127,14 @@ namespace Jovian
 
     public static class ServerRoles
     {
-        public static SocketRole? Find(string roleName)
+        public static IRole? Find(string roleName)
         {
-            return (SocketRole?)Program.AllRoles.FirstOrDefault(x => x?.Name.ToLower() == roleName.ToLower(), null);
+            return Program.AllRoles.First(x => x?.Name.ToLower() == roleName.ToLower());
+        }
+
+        public static SocketRole? FindSocketRole(string roleName)
+        {
+            return (SocketRole?)Find(roleName);
         }
     }
 }
