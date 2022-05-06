@@ -50,7 +50,11 @@ namespace Jovian
                 }
             }
             //setting up the Discord Client and some events
-            client = new DiscordSocketClient();
+            DiscordSocketConfig socket = new DiscordSocketConfig()
+            {
+                GatewayIntents = GatewayIntents.All,
+            };
+            client = new DiscordSocketClient(socket);
             client.Log += Log;
             client.Ready += Client_Ready;
             client.ButtonExecuted += Client_ButtonExecuted;
@@ -413,14 +417,13 @@ namespace Jovian
             int online = users.Where(x => x.Status != UserStatus.Offline).Count();
             int offline = totalUsers - online;
             int bots = users.Where(x => x.IsBot).Count();
-
-            foreach (IGuildUser user in users)
-            {
-                if (user.IsBot) bots++;
-                if (user.Status == UserStatus.Offline) offline++;
-                else online++;
-            }
-            return Format.BlockQuote($"[WARNING: THOSE VALUES ARE WRONG!]\n{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers} ({bots} bot{(bots == 1? "" : "s")})\nOnline: {online}\nOffline: {offline}");
+            //foreach (IGuildUser user in users)
+            //{
+            //    if (user.IsBot) bots++;
+            //    if (user.Status == UserStatus.Offline) offline++;
+            //    else online++;
+            //}
+            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers} ({bots} bot{(bots == 1? "" : "s")})\nOnline: {online}\nOffline: {offline}");
         }
         public static Task<string> GetBotStats()
         {
