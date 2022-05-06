@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using RestSharp;
+using System.Data.Common;
 
 namespace Jovian
 {
@@ -18,9 +19,9 @@ namespace Jovian
         static DotCommands()
         {
             Commands.Add(new DotCommand(async (x, y) => await Program.SendCodeSnippet(x), "Sends a code snippet to print 'Hello World!' in the specified language.", "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(y, Find(x)))), "Help Command. Use this to view help for all or for a specific command.", "help", "all", "commands"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(y, Find(x)))), "Shows help for all or for a specified command.", "help", "all", "commands"));
             Commands.Add(new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.FindSocketRole("Admin"), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to nine options.", "poll", "questions", "question"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to 10 options.", "poll", "questions", "question"));
             Commands.Add(new DotCommand(async (x, y) => await Program.Reconnect(), ServerRoles.FindSocketRole("Manager"), "Reconnects the bot.", "reconnect"));
             Commands.Add(new DotCommand(async (x, y) => await Program.Shutdown(), ServerRoles.FindSocketRole("Admin"), "Takes the bot offline.", "shutdown", "shutup", "kill"));
             Commands.Add(new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
@@ -39,12 +40,16 @@ namespace Jovian
                         ((SocketGuildUser)user).Roles.Contains(ServerRoles.Find("Admin")))
                     {
                         full += $"\n{Format.Bold("." + dotCommand.FirstKey)}\n{dotCommand.Description}";
+                        
                     }
                 }
                 return full;
-            }
-            else if (((SocketGuildUser)user).Roles.Contains(command.MandatoryRole))
+}
+            else if (command.MandatoryRole is null || ((SocketGuildUser)user).Roles.Contains(command.MandatoryRole) ||
+                    ((SocketGuildUser)user).Roles.Contains(ServerRoles.Find("Admin")))
+            {
                 return $"{command.FirstKey}: {command.Description}";
+            }
             else
                 return $"You are not allowed to use that command, but i'll say what it does:\n{command.FirstKey}: {command.Description}";
         }

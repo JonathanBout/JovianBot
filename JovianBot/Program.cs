@@ -26,6 +26,7 @@ namespace Jovian
         static IMessageChannel? botChannel;
         static IGuild Server => client.GetGuild(968156929744597062);
         public static IRole[] AllRoles => Server.Roles.ToArray();
+        public static IUser BotOwner => Server.GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
 
         static readonly IHardwareInfo hardware = new HardwareInfo();
         static CPU RaspiCPU => new CPU() { NumberOfCores = 4, Name = "Broadcom BCM2837 @ 1.2GHz", MaxClockSpeed = 1200000000, Manufacturer = "Broadcom" };
@@ -61,11 +62,7 @@ namespace Jovian
 
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            await SendMessage(Format.BlockQuote("Exception caught:\n" + ((Exception)e.ExceptionObject).Message));
-            if (Debugger.IsAttached)
-            {
-                throw (Exception)e.ExceptionObject;
-            }
+            await SendMessage(Format.BlockQuote($"Exception caught:\n{((Exception)e.ExceptionObject).Message}\nI will go to sleep for safety, please ask {BotOwner.Mention} to restart me!"));
         }
 
         [STAThread]
@@ -91,6 +88,10 @@ namespace Jovian
             await Task.Delay(500);
             await SetChannelReadonly(false);
             await SendMessage("I'm online! 🥳");
+            foreach (var command in await Server.GetApplicationCommandsAsync())
+            {
+                await command.DeleteAsync();
+            }
         }
         #endregion
 
@@ -246,7 +247,7 @@ namespace Jovian
             {
                 string[] argsArray = args.Parse();
                 string pollText = argsArray[0];
-                for (int i = 0; i < argsArray.Length - 1 && i < 9; i++)
+                for (int i = 0; i < argsArray.Length - 1 && i < 10; i++)
                 {
                     string arg = argsArray.Skip(1).Take(argsArray.Length - 1).ToArray()[i];
                     string emoji = $"{i + 1}⃣";
@@ -270,6 +271,7 @@ namespace Jovian
                         6 => ":seven:",
                         7 => ":eight:",
                         8 => ":nine:",
+                        9 => ":keycap_ten",
                         _ => ""
 
                     };
@@ -292,18 +294,24 @@ namespace Jovian
             if (botChannel is IMessageChannel channel)
             {
                 await Log("Removing all messages. this will take some time.", false);
+                await SetChannelReadonly(true);
                 suspendLog = true;
                 IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
+                var mes = await SendMessage("Please wait while i remove all the messages...");
+                int messagesCount = 0;
                 await foreach(IMessage message in messages.Flatten())
                 {
+                    if (message.Id == mes.Id) { continue; }
                     await message.DeleteAsync();
                     _ = Log(".", false);
+                    messagesCount++;
                 }
                 suspendLog = false;
                 await Log("\nDone!");
-                var x = await SendMessage("Cleared it for you!");
+                await mes.ModifyAsync(x => x.Content = $"Cleared {messagesCount} messages for you!");
+                await SetChannelReadonly(false);
                 await Task.Delay(5000);
-                await x.DeleteAsync();
+                await mes.DeleteAsync();
             }
         }
 
@@ -334,6 +342,13 @@ namespace Jovian
 
                 "english"       => Format.Code("Hello World!"),
                 "dutch"         => Format.Code("Hallo Wereld!"),
+                "french"        => Format.Code("Bonjour le monde!"),
+                "finnish"       => Format.Code("Hei maailma!"),
+                "hungarian"     => Format.Code("Helló Világ!"),
+                "spanish"       => Format.Code("¡Hola Mundo!"),
+                "german"        => Format.Code("Hallo Welt!"),
+                "greek"         => Format.Code("Γειά σου Κόσμε!"),
+                "chinese"       => Format.Code("你好世界!"),
                 _ => "",
             };
             if (s != "")
@@ -370,8 +385,14 @@ namespace Jovian
         public static async Task<string> RequestRandomJoke(string args)
         {
             string joke = "";
-            int.TryParse(args, out int amount);
-            amount = Math.Clamp(amount, 1, 5);
+            if (!int.TryParse(args, out int amount))
+            {
+                amount = 1;
+            }else
+            {
+                amount = Math.Clamp(amount, 1, Math.Max(1000/client.Latency, 1));
+            }
+
             do
             {
                 RestClient client = new RestClient("https://icanhazdadjoke.com/");
@@ -389,16 +410,17 @@ namespace Jovian
 
             IGuildUser[] users = (await Server.GetUsersAsync()).ToArray();
             int totalUsers = users.Length;
-            int online = 0;
-            int offline = 0;
-            int bots = 0;
+            int online = users.Where(x => x.Status != UserStatus.Offline).Count();
+            int offline = totalUsers - online;
+            int bots = users.Where(x => x.IsBot).Count();
+
             foreach (IGuildUser user in users)
             {
                 if (user.IsBot) bots++;
-                else if (user.Status == UserStatus.Online) online++;
-                else if (user.Status == UserStatus.Offline) offline++;
+                if (user.Status == UserStatus.Offline) offline++;
+                else online++;
             }
-            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers} ({bots} bot{(bots == 1? "" : "s")})");//\nOnline: {online}\nOffline: {offline}");
+            return Format.BlockQuote($"[WARNING: THOSE VALUES ARE WRONG!]\n{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers} ({bots} bot{(bots == 1? "" : "s")})\nOnline: {online}\nOffline: {offline}");
         }
         public static Task<string> GetBotStats()
         {
