@@ -29,6 +29,7 @@ namespace Jovian
         public static IUser BotOwner => Server.GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
 
         static readonly IHardwareInfo hardware = new HardwareInfo();
+        static readonly DateTime startTime;
         static CPU RaspiCPU => new CPU() { NumberOfCores = 4, Name = "Broadcom BCM2837 @ 1.2GHz", MaxClockSpeed = 1200000000, Manufacturer = "Broadcom" };
 
         #region Constructor and Main
@@ -61,6 +62,7 @@ namespace Jovian
             client.MessageReceived += MessageReceivedAsync;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            startTime = DateTime.UtcNow;
             hardware.RefreshAll();
         }
 
@@ -187,12 +189,14 @@ namespace Jovian
                         var userRoles = ((SocketGuildUser)message.Author).Roles;
                         if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole) || userRoles.Any(x => x.Name == "Admin"))
                         {
+                            await SendMessage($"{message.Author.Username} invoked command {command}.");
+                            await Task.Delay(100);
                             dotCommand.Invoke(args, message.Author);
                             didInvoke = true;
                             break;
                         }else
                         {
-                            await SendMessage("You do not have permission to send this command.");
+                            await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command, although they tried to invoke it.");
                             didInvoke = true;
                         }
                     }
@@ -201,6 +205,7 @@ namespace Jovian
                 {
                     await SendMessage($"I dont know what you mean by '{command}' 🤷");
                 }
+                await message.DeleteAsync();
             }
             return;
         }
@@ -417,12 +422,6 @@ namespace Jovian
             int online = users.Where(x => x.Status != UserStatus.Offline).Count();
             int offline = totalUsers - online;
             int bots = users.Where(x => x.IsBot).Count();
-            //foreach (IGuildUser user in users)
-            //{
-            //    if (user.IsBot) bots++;
-            //    if (user.Status == UserStatus.Offline) offline++;
-            //    else online++;
-            //}
             return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers} ({bots} bot{(bots == 1? "" : "s")})\nOnline: {online}\nOffline: {offline}");
         }
         public static Task<string> GetBotStats()
@@ -446,8 +445,8 @@ namespace Jovian
                 $"Physical Memory: {hardware.MemoryStatus.AvailablePhysical.FormatValue()}" +
                 $"/{hardware.MemoryStatus.TotalPhysical.FormatValue()}";
 
-            retVal += Format.Bold($"\nLatency: {client.Latency} ms");
-            
+            TimeSpan uptime = DateTime.UtcNow - startTime;
+            retVal += Format.Bold($"\nLatency: {client.Latency} ms\nUptime: {uptime.ToTimeString()}");          
             return Task.FromResult(Format.BlockQuote(retVal));
         }
 
@@ -472,6 +471,21 @@ namespace Jovian
             }
 
             return string.Format($"{{0:{format}}} {{1}}", dblSByte, Suffix[i] + letter);
+        }
+
+        private static string ToTimeString(this TimeSpan span)
+        {
+            string res = "";
+            if (span.Days > 0)
+            {
+                res += $"{span.Days} day" + (span.Days != 1 ? "s" : "") + ", ";
+            }
+            if (span.Hours > 0)
+            {
+                res += $"{span.Hours} hour" + (span.Hours != 1 ? "s" : "") + ", ";
+            }
+            res += $"{span.Minutes} minute" + (span.Minutes != 1 ? "s" : "");
+            return res;
         }
     }
 }
