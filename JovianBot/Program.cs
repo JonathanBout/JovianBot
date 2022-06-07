@@ -14,7 +14,11 @@ using System.Text;
 using System.Threading.Tasks;
 using RestSharp;
 using System.Runtime.InteropServices;
-using Hardware.Info;
+using Unosquare.RaspberryIO;
+using Unosquare.RaspberryIO.Native;
+using Unosquare.RaspberryIO.Abstractions;
+using Unosquare.WiringPi;
+using Unosquare.RaspberryIO.Computer;
 
 namespace Jovian
 {
@@ -28,10 +32,7 @@ namespace Jovian
         public static IRole[] AllRoles => Server.Roles.ToArray();
         public static IUser BotOwner => Server.GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
 
-        static readonly IHardwareInfo hardware = new HardwareInfo();
         static readonly DateTime startTime;
-        static CPU RaspiCPU => new CPU() { NumberOfCores = 4, Name = "Broadcom BCM2837 @ 1.2GHz", MaxClockSpeed = 1200000000, Manufacturer = "Broadcom" };
-
         #region Constructor and Main
         static Program()
         {
@@ -63,7 +64,9 @@ namespace Jovian
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             startTime = DateTime.UtcNow;
-            hardware.RefreshAll();
+#if !DEBUG
+            Pi.Init<BootstrapWiringPi>();
+#endif
         }
 
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -117,11 +120,13 @@ namespace Jovian
         public static async Task Reconnect()
         {
             await SendMessage("Gimme a sec...");
+            await SetChannelReadonly(true);
             await client.StopAsync();
             await client.LogoutAsync();
             await Task.Delay(500);
             await client.LoginAsync(TokenType.Bot, config["Token"]);
             await client.StartAsync();
+            await SetChannelReadonly(false);
             await SendMessage("Done!");
         }
 
@@ -159,7 +164,13 @@ namespace Jovian
         {
             if (((SocketGuildUser)arg.User).Roles.Any(x => x == ServerRoles.FindSocketRole("Admin")) || !doCheck || arg.Data.CustomId == "cancelbutton")
             {
-                await arg.UpdateAsync(x => { x.Components = new ComponentBuilder().WithButton("Ok", "okbutton", ButtonStyle.Danger, disabled: true).WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary, disabled: true).Build(); x.Content = content; });
+                await arg.UpdateAsync(x => 
+                { 
+                    x.Components = new ComponentBuilder()
+                    .WithButton("Ok", "okbutton", ButtonStyle.Danger, disabled: true)
+                    .WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary, disabled: true)
+                    .Build(); x.Content = content; 
+                });
                 return true;
             }
             else
@@ -408,7 +419,7 @@ namespace Jovian
                 RestRequest request = new RestRequest();
                 request.AddHeader("Accept", "application/json");
                 RestResponse response = await client.GetAsync(request);
-                joke += (JsonConvert.DeserializeObject<JokeObject>(response.Content ?? "")?.Joke ?? "No joke found 🤷") + "\r\n\n";
+                joke += (JsonConvert.DeserializeObject<JokeObject>(response.Content ?? "")?.Joke ?? "No joke found 🤷") + "\n\n";
                 amount--;
             } while (amount > 0);
             return joke;
@@ -426,28 +437,15 @@ namespace Jovian
         }
         public static Task<string> GetBotStats()
         {
-            string retVal = $"{Format.Bold($"Bot Stats{(Debugger.IsAttached?" [DEBUG MODE]" : "")}:")}\nOperating System: {Environment.OSVersion.VersionString}";
-            hardware.RefreshCPUList();
-            hardware.RefreshMemoryStatus();
-            List<CPU> CPUs = hardware.CpuList;
-            for (int i = 0; i < CPUs.Count; i++)
-            {
-                CPU cpu = CPUs[i];
-                retVal += $"\n" +
-                    $"CPU {i + 1}:\n\t" +
-                        $"Name: {cpu.Name}\n\t" +
-                        $"Manufacturer: {(string.IsNullOrEmpty(cpu.Manufacturer)?RaspiCPU.Manufacturer:cpu.Manufacturer)}\n\t" +
-                        $"Core(s): {(cpu.NumberOfCores < 1?RaspiCPU.NumberOfCores : cpu.NumberOfCores)}\n\t" +
-                        $"Clock Speed: {(cpu.CurrentClockSpeed < 10?"--" : (cpu.CurrentClockSpeed / 1000m).FormatValue("Hz"))}" +
-                        $"/{(cpu.MaxClockSpeed < 10 ? RaspiCPU.MaxClockSpeed : cpu.MaxClockSpeed / 1000m).FormatValue("Hz")}";
-            }
-            retVal += $"\n{Format.Bold("Memory:")}\n" +
-                $"Physical Memory: {hardware.MemoryStatus.AvailablePhysical.FormatValue()}" +
-                $"/{hardware.MemoryStatus.TotalPhysical.FormatValue()}";
-
-            TimeSpan uptime = DateTime.UtcNow - startTime;
-            retVal += Format.Bold($"\nLatency: {client.Latency} ms\nUptime: {uptime.ToTimeString()}");          
+#if !DEBUG
+            string retVal = $"{Format.Bold($"Bot Stats{(Debugger.IsAttached ? " [DEBUG MODE]" : "")}:")}\n";
+            retVal += $"Bot runs on a Raspberry PI {Pi.Info.BoardModel}";
+            retVal += $"OS: {Pi.Info.OperatingSystem} version\n";
+            retVal += $"System Uptime: {Pi.Info.Uptime}\n";
+            retVal += $"Bot uptime: {DateTime.Now - startTime}\n";
+            retVal += $"Total RAM: {FormatValue(Pi.Info.InstalledRam)}\n";
             return Task.FromResult(Format.BlockQuote(retVal));
+#endif
         }
 
         class JokeObject
