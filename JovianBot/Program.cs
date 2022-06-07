@@ -33,6 +33,7 @@ namespace Jovian
         public static IUser BotOwner => Server.GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
 
         static readonly DateTime startTime;
+        static bool isQuickStart = false;
         #region Constructor and Main
         static Program()
         {
@@ -47,8 +48,8 @@ namespace Jovian
                 if (theprocess.ProcessName == Process.GetCurrentProcess().ProcessName && theprocess.Id != Environment.ProcessId)
                 {
                     Log("The bot is running already!");
-                    Thread.Sleep(100);
-                    Environment.Exit(0);
+                    theprocess.Kill();
+                    isQuickStart = true;
                 }
             }
             //setting up the Discord Client and some events
@@ -97,7 +98,8 @@ namespace Jovian
             botChannel = await client.GetChannelAsync(968176792751976490) as IMessageChannel;
             await Task.Delay(500);
             await SetChannelReadonly(false);
-            await SendMessage("I'm online! 🥳");
+            if (!isQuickStart)
+                await SendMessage("I'm online! 🥳");
             foreach (var command in await Server.GetApplicationCommandsAsync())
             {
                 await command.DeleteAsync();
