@@ -444,7 +444,7 @@ namespace Jovian
             try
             {
                 retVal += $"Bot runs on a Raspberry PI Model 3B+.\n";
-                retVal += $"OS: domain name: {Pi.Info.OperatingSystem.DomainName} node name: {Pi.Info.OperatingSystem.NodeName} release: {Pi.Info.OperatingSystem.Release}\n";
+                retVal += $"OS: sys name: {Pi.Info.OperatingSystem.SysName} node name: {Pi.Info.OperatingSystem.Machine} release: {Pi.Info.OperatingSystem.Release}\n";
                 retVal += $"System Uptime:\t {Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
                 retVal += $"Bot uptime:\t\t\t {(DateTime.Now - startTime).ToTimeString()}\n";
                 retVal += $"Total RAM: {FormatValue(Pi.Info.InstalledRam)}\n";
