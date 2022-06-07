@@ -441,10 +441,10 @@ namespace Jovian
             string retVal = $"{Format.Bold($"Bot Stats{(Debugger.IsAttached ? " [DEBUG MODE]" : "")}:")}\n";
             try
             {
-                retVal += $"Bot runs on a Raspberry PI {Pi.Info.BoardModel}";
-                retVal += $"OS: {Pi.Info.OperatingSystem} version\n";
-                retVal += $"System Uptime: {Pi.Info.Uptime}\n";
-                retVal += $"Bot uptime: {DateTime.Now - startTime}\n";
+                retVal += $"Bot runs on a Raspberry PI Model 3B+.\n";
+                retVal += $"OS: {Pi.Info.OperatingSystem.Release}\n";
+                retVal += $"System Uptime:\t {Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
+                retVal += $"Bot uptime:\t\t {(DateTime.Now - startTime).ToTimeString()}\n";
                 retVal += $"Total RAM: {FormatValue(Pi.Info.InstalledRam)}\n";
                 return Task.FromResult(Format.BlockQuote(retVal));
             }catch (Exception ex)
