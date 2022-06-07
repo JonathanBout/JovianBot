@@ -64,9 +64,10 @@ namespace Jovian
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             startTime = DateTime.UtcNow;
-#if !DEBUG
-            Pi.Init<BootstrapWiringPi>();
-#endif
+            try
+            {
+                Pi.Init<BootstrapWiringPi>();
+            }catch { }
         }
 
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -437,15 +438,19 @@ namespace Jovian
         }
         public static Task<string> GetBotStats()
         {
-#if !DEBUG
             string retVal = $"{Format.Bold($"Bot Stats{(Debugger.IsAttached ? " [DEBUG MODE]" : "")}:")}\n";
-            retVal += $"Bot runs on a Raspberry PI {Pi.Info.BoardModel}";
-            retVal += $"OS: {Pi.Info.OperatingSystem} version\n";
-            retVal += $"System Uptime: {Pi.Info.Uptime}\n";
-            retVal += $"Bot uptime: {DateTime.Now - startTime}\n";
-            retVal += $"Total RAM: {FormatValue(Pi.Info.InstalledRam)}\n";
-            return Task.FromResult(Format.BlockQuote(retVal));
-#endif
+            try
+            {
+                retVal += $"Bot runs on a Raspberry PI {Pi.Info.BoardModel}";
+                retVal += $"OS: {Pi.Info.OperatingSystem} version\n";
+                retVal += $"System Uptime: {Pi.Info.Uptime}\n";
+                retVal += $"Bot uptime: {DateTime.Now - startTime}\n";
+                retVal += $"Total RAM: {FormatValue(Pi.Info.InstalledRam)}\n";
+                return Task.FromResult(Format.BlockQuote(retVal));
+            }catch (Exception ex)
+            {
+                return Task.FromResult(Format.Bold("Error: " + ex.Message));
+            }
         }
 
         class JokeObject
