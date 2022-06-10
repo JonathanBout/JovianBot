@@ -28,10 +28,10 @@ namespace Jovian
         static public DiscordSocketClient client;
         static private bool suspendLog;
         static IMessageChannel? botChannel;
-        static DataStorage storage;
+        static DataStorage Storage { get; }
         static IGuild Server => client.GetGuild(968156929744597062);
         public static IRole[] AllRoles => Server.Roles.ToArray();
-        public static IUser BotOwner => Server.GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
+        public static IUser BotOwner => (IUser)Server.GetUserAsync(813736849482842153);// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
 
         static readonly DateTime startTime;
         static bool isQuickStart = false;
@@ -66,6 +66,7 @@ namespace Jovian
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             startTime = DateTime.UtcNow;
+            Storage = new DataStorage(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDomain.CurrentDomain.FriendlyName), "MainStorage");
 #if !DEBUG
             try
             {
@@ -82,8 +83,8 @@ namespace Jovian
         [STAThread]
         public static async Task Main()
         {
-            storage = new DataStorage(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDomain.CurrentDomain.FriendlyName), "MainStorage");
-            await Log("Created DataStorage at " + storage.StoragePath);
+            
+            await Log("Created DataStorage at " + Storage.StoragePath);
             try
             {
                 await client.LoginAsync(TokenType.Bot, config["Token"]);
@@ -245,12 +246,16 @@ namespace Jovian
 
         static Task LogError(Exception ex)
         {
+#if !DEBUG
             var data = $"message: {ex.Message}\nsource:{ex.Source}";
-            ConsoleColor original = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Red;
+            ConsoleColor original = Console.BackgroundColor;
+            Console.BackgroundColor = ConsoleColor.Red;
             Console.WriteLine(data);
-            Console.ForegroundColor = original;
+            Console.BackgroundColor = original;
             return Task.CompletedTask;
+#else
+            throw ex;
+#endif
         }
 
         public static async Task<IUserMessage> SendMessage(string message)
@@ -505,14 +510,14 @@ namespace Jovian
             {
                 data += arguments[i] + " :\t";
                 data += arguments[i + 1]+"\n";
-                storage.WriteData(new DataChunk<string>(arguments[i], arguments[i + 1]));
+                Storage.WriteData(new DataChunk<string>(arguments[i], arguments[i + 1]));
             }
             await SendMessage("Succesfully written to data storage:\n" + data);
         }
 
         public static async Task ReadDS(string args)
         {
-            List<DataChunk<string>> chunks = storage.GetChunks<string>()?.ToList()?? new List<DataChunk<string>>();
+            List<DataChunk<string>> chunks = Storage.GetChunks<string>()?.ToList()?? new List<DataChunk<string>>();
             if (string.IsNullOrEmpty(args))
             {
                 string msg = "All data in the DataStorage:\n";
@@ -546,7 +551,7 @@ namespace Jovian
 
         public static async Task ClearDS()
         {
-            storage.Clear();
+            Storage.Clear();
             await SendMessage("Removed everything in the DataStorage!");
         }
     }
