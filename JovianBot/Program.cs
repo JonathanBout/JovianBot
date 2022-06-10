@@ -31,7 +31,7 @@ namespace Jovian
         public static DataStorage<string> Storage { get; }
         static IGuild Server => client.GetGuild(968156929744597062);
         public static IRole[] AllRoles => Server.Roles.ToArray();
-        public static IUser BotOwner => (IUser)Server.GetUserAsync(813736849482842153);// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
+        public static IUser BotOwner => Server.GetUserAsync(813736849482842153).GetAwaiter().GetResult();// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
 
         static readonly DateTime startTime;
         static bool isQuickStart = false;
@@ -93,6 +93,10 @@ namespace Jovian
                 await Task.Delay(-1);
             }catch (Exception ex)
             {
+                if (ex is IgnoredException)
+                {
+                    throw;
+                }
                 await LogError(ex);
             }
         }
@@ -121,6 +125,10 @@ namespace Jovian
                 await client.LogoutAsync();
             }catch (Exception ex)
             {
+                if (ex is IgnoredException)
+                {
+                    throw;
+                }
                 await LogError(ex);
             }
         }
@@ -178,43 +186,55 @@ namespace Jovian
 
         private static async Task MessageReceivedAsync(SocketMessage message)
         {
-            //This ensures we don't loop things by responding to ourselves (as the bot)
-            if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
-                return;
-
-            if (message.Content.StartsWith('.'))
+            try
             {
-                string commandWithArgs = message.Content.TrimStart('.', ' ');
-                string args = string.Join(' ', commandWithArgs.Split(' ').Skip(1));
-                string command = string.Join("", commandWithArgs.Split(' ').Take(1));
-                bool didInvoke = false;
+                //This ensures we don't loop things by responding to ourselves (as the bot)
+                if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
+                    return;
 
-                foreach (DotCommand dotCommand in DotCommands.Commands)
+                if (message.Content.StartsWith('.'))
                 {
-                    if (dotCommand == command)
+                    string commandWithArgs = message.Content.TrimStart('.', ' ');
+                    string args = string.Join(' ', commandWithArgs.Split(' ').Skip(1));
+                    string command = string.Join("", commandWithArgs.Split(' ').Take(1));
+                    bool didInvoke = false;
+
+                    foreach (DotCommand dotCommand in DotCommands.Commands)
                     {
-                        var userRoles = ((SocketGuildUser)message.Author).Roles;
-                        if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole) || userRoles.Any(x => x.Name == "Admin"))
+                        if (dotCommand == command)
                         {
-                            await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."));
-                            await Task.Delay(100);
-                            dotCommand.Invoke(args, message.Author);
-                            didInvoke = true;
-                            break;
-                        }else
-                        {
-                            await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command, although they tried to invoke it.");
-                            didInvoke = true;
+                            var userRoles = ((SocketGuildUser)message.Author).Roles;
+                            if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole) || userRoles.Any(x => x.Name == "Admin"))
+                            {
+                                await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."));
+                                await Task.Delay(100);
+                                dotCommand.Invoke(args, message.Author);
+                                didInvoke = true;
+                                break;
+                            }else
+                            {
+                                await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command, although they tried to invoke it.");
+                                didInvoke = true;
+                            }
                         }
                     }
+                    if (!didInvoke)
+                    {
+                        await SendMessage($"I dont know what you mean by '{command}' 🤷");
+                    }
+                    await message.DeleteAsync();
                 }
-                if (!didInvoke)
-                {
-                    await SendMessage($"I dont know what you mean by '{command}' 🤷");
-                }
-                await message.DeleteAsync();
+                return;
+            }catch (IgnoredException ex)
+            {
+                ThrowException(ex);
             }
-            return;
+        }
+
+        public static async void ThrowException(Exception ex)
+        {
+            await Task.Yield();
+            throw ex;
         }
 
         static Task Log(LogMessage msg)
@@ -448,6 +468,10 @@ namespace Jovian
                 return Task.FromResult(Format.BlockQuote(retVal));
             }catch (Exception ex)
             {
+                if (ex is IgnoredException)
+                {
+                    throw;
+                }
                 return Task.FromResult(Format.Bold("Error: " + ex.Message));
             }
         }
