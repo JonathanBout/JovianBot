@@ -138,11 +138,14 @@ namespace Jovian
             await SendMessage("Done!");
         }
 
-        public static Task Reboot()
+        public static async Task Reboot()
         {
-            Pi.Restart();
-            Environment.Exit(0);
-            return Task.CompletedTask;
+            await SendMessage("Wait a minute...");
+            var x = await Pi.RestartAsync();
+            await Log($"Exit Code: {x.ExitCode}" +
+                $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
+                 $"\nError: {(string.IsNullOrEmpty(x.StandardError ) ? "(none)" : x.StandardError )}");
+            await SendMessage("I'm back!");
         }
 
         public static async Task SetChannelReadonly(bool isReadonly)
