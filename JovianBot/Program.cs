@@ -138,6 +138,13 @@ namespace Jovian
             await SendMessage("Done!");
         }
 
+        public static Task Reboot()
+        {
+            Pi.Restart();
+            Environment.Exit(0);
+            return Task.CompletedTask;
+        }
+
         public static async Task SetChannelReadonly(bool isReadonly)
         {
             if (botChannel is null) return;
