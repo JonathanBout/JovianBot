@@ -61,7 +61,6 @@ namespace Jovian
             client = new DiscordSocketClient(socket);
             client.Log += Log;
             client.Ready += Client_Ready;
-            client.ButtonExecuted += Client_ButtonExecuted;
             client.MessageReceived += MessageReceivedAsync;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
@@ -117,6 +116,7 @@ namespace Jovian
             try
             {
                 await SendMessage($"I'm going offline👋");
+                await SetChannelReadonly(true);
                 await client.SetStatusAsync(UserStatus.Offline);
                 await client.LogoutAsync();
             }catch (Exception ex)
@@ -141,6 +141,7 @@ namespace Jovian
         public static async Task Reboot()
         {
             await SendMessage("Wait a minute...");
+            await SetChannelReadonly(true);
             var x = await Pi.RestartAsync();
             await Log($"Exit Code: {x.ExitCode}" +
                 $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
@@ -153,29 +154,6 @@ namespace Jovian
             if (botChannel is null) return;
             var perms = new OverwritePermissions(sendMessages: isReadonly ? PermValue.Deny : PermValue.Allow);
             await ((IGuildChannel)botChannel).AddPermissionOverwriteAsync(ServerRoles.Find("@everyone"), perms);
-        }
-
-        public static async Task Shutdown()
-        {
-            var builder = new ComponentBuilder().WithButton("Ok", "okbutton", ButtonStyle.Danger).WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary);
-            await SendMessage("Are u sure you want to shut me down?😟", builder.Build());
-        }
-        private static async Task Client_ButtonExecuted(SocketMessageComponent arg)
-        {
-            switch (arg.Data.CustomId)
-            {
-                case "okbutton":
-                    if (await ButtonUpdate(arg, $"{arg.User.Mention} shut me down 😥"))
-                    {
-                        await SetChannelReadonly(true);
-                        Environment.Exit(0);
-                    }
-                    break;
-                case "cancelbutton":
-                    await ButtonUpdate(arg, $"Shutdown cancelled. Phew 😌");
-                    break;
-            }
-            return;
         }
 
         static async Task<bool> ButtonUpdate(SocketMessageComponent arg, string content, bool doCheck = true)
@@ -545,9 +523,17 @@ namespace Jovian
             }else
             {
                 string[] arguments = args.Parse();
-                string msg = "All data with key(s) ";
-                arguments.ToList().ForEach(x => msg += x + " ");
-                msg += "\n";
+                string msg = "All data with key";
+                if (arguments.Length > 1)
+                {
+                    msg += "s";
+                    arguments.Take(arguments.Length - 1).ToList().ForEach(x => msg += " " + x);
+                    msg += " and " + arguments[^1];
+                }else
+                {
+                    arguments.ToList().ForEach(x => msg += " " + x);
+                }
+                msg += ":\n";
                 foreach (var item in chunks)
                 {
                     if (arguments.Contains(item.Id))

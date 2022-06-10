@@ -23,7 +23,6 @@ namespace Jovian
             Commands.Add(new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.FindSocketRole("Admin"), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
             Commands.Add(new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to 10 options.", "poll", "questions", "question"));
             Commands.Add(new DotCommand(async (x, y) => await Program.Reconnect(), ServerRoles.FindSocketRole("Manager"), "Reconnects the bot.", "reconnect"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.Shutdown(), ServerRoles.FindSocketRole("Admin"), "Restarts the bot  ", "shutdown", "shutup", "kill"));
             Commands.Add(new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
             Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetStats()), "Shows some statistics about this server.", "serverstats", "server", "serverinfo"));
             Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "botstats", "bot", "botinfo", "jovian"));
@@ -31,7 +30,7 @@ namespace Jovian
             Commands.Add(new DotCommand(async (x, y) => await Program.ReadDS(x), "Reads all stuff or a specific key in the DataStorage.", "read", "get", "load"));
             Commands.Add(new DotCommand(async (x, y) => await Program.ClearDS(), ServerRoles.FindSocketRole("Admin"), "Removes all stuff in the DataStorage.", "removedata", "cleardata", "deletedata"));
             Commands.Add(new DotCommand(      (x, y) => throw new Exception(x), ServerRoles.FindSocketRole("Admin"), "Throws an Exception, so that the bot crashes.", "throwerror", "bug"));
-            Commands.Add(new DotCommand(      (x, y) => Program.Reboot(), ServerRoles.FindSocketRole("Admin"), "Reboots the Raspberry PI the bot is running on.", "reboot", "restart"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.Reboot(), ServerRoles.FindSocketRole("Admin"), "Reboots the Raspberry PI the bot is running on.", "reboot", "restart"));
         }
 
         public static string GetHelpString(SocketUser user, DotCommand? command = null)
