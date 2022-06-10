@@ -89,22 +89,10 @@ namespace Jovian
                 await client.LoginAsync(TokenType.Bot, config["Token"]);
                 await client.StartAsync();
 
-                await Task.Delay(-1);
-                        //while (true)
-                        //{
-                        //    await Task.Delay(120000);
-                        //    Storage.Reload();
-                        //}
-            }catch (IgnoredException)
-            {
 
-            }           
-            catch (Exception ex)
+                await Task.Delay(-1);
+            }catch (Exception ex)
             {
-                if (ex is IgnoredException)
-                {
-                    throw;
-                }
                 await LogError(ex);
             }
         }
@@ -133,10 +121,6 @@ namespace Jovian
                 await client.LogoutAsync();
             }catch (Exception ex)
             {
-                if (ex is IgnoredException)
-                {
-                    throw;
-                }
                 await LogError(ex);
             }
         }
@@ -464,10 +448,6 @@ namespace Jovian
                 return Task.FromResult(Format.BlockQuote(retVal));
             }catch (Exception ex)
             {
-                if (ex is IgnoredException)
-                {
-                    throw;
-                }
                 return Task.FromResult(Format.Bold("Error: " + ex.Message));
             }
         }
