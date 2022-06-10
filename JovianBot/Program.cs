@@ -89,11 +89,12 @@ namespace Jovian
                 await client.LoginAsync(TokenType.Bot, config["Token"]);
                 await client.StartAsync();
 
-                while (true)
-                {
-                    await Task.Delay(120000);
-                    Storage.Reload();
-                }
+                await Task.Delay(-1);
+                        //while (true)
+                        //{
+                        //    await Task.Delay(120000);
+                        //    Storage.Reload();
+                        //}
             }catch (Exception ex)
             {
                 if (ex is IgnoredException)
