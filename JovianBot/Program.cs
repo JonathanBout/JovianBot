@@ -66,7 +66,7 @@ namespace Jovian
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             startTime = DateTime.UtcNow;
-            Storage = new DataStorage(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDomain.CurrentDomain.FriendlyName), "MainStorage");
+            Storage = new DataStorage(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDomain.CurrentDomain.FriendlyName + "_DataStorage"), "MainStorage");
 #if !DEBUG
             try
             {
