@@ -4,46 +4,45 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using System.IO;
 
 namespace Jovian
 {
-    public class DataStorage
+    public class DataStorage<T> where T : notnull
     {
         public string StoragePath { get; init; }
-        string Directory => Path.GetDirectoryName(StoragePath) ?? "";
+        string StorageDirectory => Path.GetDirectoryName(StoragePath) ?? "";
         string FileName { get; init; }
 
         const string FileExtension = ".LDS";
+
+        public List<DataChunk<T>> currentStorage = new List<DataChunk<T>>();
         public DataStorage(string path, string name)
         {
             FileName = name;
             StoragePath = Path.Combine(path, FileName + FileExtension);
-            System.IO.Directory.CreateDirectory(Directory);
+            Reload();
+        }
+
+        public void Reload()
+        {
+            Directory.CreateDirectory(StorageDirectory);
             bool fileExists = File.Exists(StoragePath);
             File.Open(StoragePath, FileMode.OpenOrCreate).Dispose();
             if (!fileExists)
                 WriteText("[");
+            currentStorage = GetChunks()?.ToList() ?? new List<DataChunk<T>>();
         }
 
-        public IEnumerable<DataChunk<T>>? GetChunks<T>() where T : notnull
-        {
-            return GetChunks()?.Select(x => new DataChunk<T>(x.Id, (T)x.Data)).ToList() ?? new List<DataChunk<T>>();
-        }
-
-        public IEnumerable<DataChunk>? GetChunks()
+        public IEnumerable<DataChunk<T>>? GetChunks()
         {
             string content = GetText();
-            return JsonConvert.DeserializeObject<IEnumerable<DataChunk>>(content);
+            return JsonConvert.DeserializeObject<IEnumerable<DataChunk<T>>>(content);
         }
 
-        public DataChunk? GetChunkByID(string ID)
+        public DataChunk<T>? GetChunkByID(string ID)
         {
             return GetChunks()?.First(x => x.Id == ID);
-        }
-
-        public DataChunk<T>? GetChunkByID<T>(string ID) where T : notnull
-        {
-            return (DataChunk<T>?)GetChunkByID(ID);
         }
 
         public string GetText()
@@ -54,8 +53,9 @@ namespace Jovian
             }
         }
 
-        public void WriteData(DataChunk chunk)
+        public void WriteData(DataChunk<T> chunk)
         {
+            currentStorage.Add(chunk);
             WriteText(chunk.ToJSON() + ",");
         }
 

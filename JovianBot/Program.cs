@@ -28,7 +28,7 @@ namespace Jovian
         static public DiscordSocketClient client;
         static private bool suspendLog;
         static IMessageChannel? botChannel;
-        static DataStorage Storage { get; }
+        public static DataStorage<string> Storage { get; }
         static IGuild Server => client.GetGuild(968156929744597062);
         public static IRole[] AllRoles => Server.Roles.ToArray();
         public static IUser BotOwner => (IUser)Server.GetUserAsync(813736849482842153);// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
@@ -65,7 +65,7 @@ namespace Jovian
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             startTime = DateTime.UtcNow;
-            Storage = new DataStorage(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDomain.CurrentDomain.FriendlyName + "_DataStorage"), "MainStorage");
+            Storage = new DataStorage<string>(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDomain.CurrentDomain.FriendlyName + "_DataStorage"), "MainStorage");
 #if !DEBUG
             try
             {
@@ -89,10 +89,17 @@ namespace Jovian
                 await client.LoginAsync(TokenType.Bot, config["Token"]);
                 await client.StartAsync();
 
-
-                await Task.Delay(-1);
+                while (true)
+                {
+                    await Task.Delay(120000);
+                    Storage.Reload();
+                }
             }catch (Exception ex)
             {
+                if (ex is IgnoredException)
+                {
+                    throw;
+                }
                 await LogError(ex);
             }
         }
@@ -121,6 +128,10 @@ namespace Jovian
                 await client.LogoutAsync();
             }catch (Exception ex)
             {
+                if (ex is IgnoredException)
+                {
+                    throw;
+                }
                 await LogError(ex);
             }
         }
@@ -448,6 +459,10 @@ namespace Jovian
                 return Task.FromResult(Format.BlockQuote(retVal));
             }catch (Exception ex)
             {
+                if (ex is IgnoredException)
+                {
+                    throw;
+                }
                 return Task.FromResult(Format.Bold("Error: " + ex.Message));
             }
         }
@@ -505,7 +520,7 @@ namespace Jovian
 
         public static async Task ReadDS(string args)
         {
-            List<DataChunk<string>> chunks = Storage.GetChunks<string>()?.ToList()?? new List<DataChunk<string>>();
+            List<DataChunk<string>> chunks = Storage.currentStorage;
             if (string.IsNullOrEmpty(args))
             {
                 string msg = "All data in the DataStorage:\n";

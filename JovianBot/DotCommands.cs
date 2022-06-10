@@ -29,8 +29,9 @@ namespace Jovian
             Commands.Add(new DotCommand(async (x, y) => await Program.WriteDS(x), "Splits the parameters and writes them to a Database in the form (ID, VALUE)", "write", "store", "save"));
             Commands.Add(new DotCommand(async (x, y) => await Program.ReadDS(x), "Reads all stuff or a specific key in the DataStorage.", "read", "get", "load"));
             Commands.Add(new DotCommand(async (x, y) => await Program.ClearDS(), ServerRoles.FindSocketRole("Admin"), "Removes all stuff in the DataStorage.", "removedata", "cleardata", "deletedata"));
-            Commands.Add(new DotCommand(      (x, y) => throw new Exception(x), ServerRoles.FindSocketRole("Admin"), "Throws an Exception, so that the bot crashes.", "throwerror", "bug"));
+            Commands.Add(new DotCommand(      (x, y) => throw new IgnoredException(x), ServerRoles.FindSocketRole("Admin"), "Throws an Exception, so that the bot crashes.", "error", "bug"));
             Commands.Add(new DotCommand(async (x, y) => await Program.Reboot(), ServerRoles.FindSocketRole("Admin"), "Reboots the Raspberry PI the bot is running on.", "reboot", "restart"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage($"Saved path is {Program.Storage.StoragePath}"), ServerRoles.FindSocketRole("Manager"), "Sends the current DataStorage saving path."));
         }
 
         public static string GetHelpString(SocketUser user, DotCommand? command = null)
@@ -145,5 +146,10 @@ namespace Jovian
         {
             return (SocketRole?)Find(roleName);
         }
+    }
+
+    public class IgnoredException : Exception
+    {
+        public IgnoredException(string? message) : base(message) { }
     }
 }
