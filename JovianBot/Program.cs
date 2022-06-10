@@ -527,7 +527,7 @@ namespace Jovian
                 if (arguments.Length > 1)
                 {
                     msg += "s";
-                    arguments.Take(arguments.Length - 1).ToList().ForEach(x => msg += " " + x);
+                    arguments.Take(arguments.Length - 1).ToList().ForEach(x => msg += ", " + x);
                     msg += " and " + arguments[^1];
                 }else
                 {
