@@ -95,7 +95,11 @@ namespace Jovian
                         //    await Task.Delay(120000);
                         //    Storage.Reload();
                         //}
-            }catch (Exception ex)
+            }catch (IgnoredException)
+            {
+
+            }           
+            catch (Exception ex)
             {
                 if (ex is IgnoredException)
                 {
