@@ -23,10 +23,13 @@ namespace Jovian
             Commands.Add(new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.FindSocketRole("Admin"), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
             Commands.Add(new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to 10 options.", "poll", "questions", "question"));
             Commands.Add(new DotCommand(async (x, y) => await Program.Reconnect(), ServerRoles.FindSocketRole("Manager"), "Reconnects the bot.", "reconnect"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.Shutdown(), ServerRoles.FindSocketRole("Admin"), "Takes the bot offline.", "shutdown", "shutup", "kill"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.Shutdown(), ServerRoles.FindSocketRole("Admin"), "Restarts the bot  ", "shutdown", "shutup", "kill"));
             Commands.Add(new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
             Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetStats()), "Shows some statistics about this server.", "serverstats", "server", "serverinfo"));
             Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "botstats", "bot", "botinfo", "jovian"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.WriteDS(x), "Splits the parameters and writes them to a Database in the form (ID, VALUE)", "write", "store", "save"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.ReadDS(x), "Reads all stuff or a specific key in the DataStorage.", "read", "get", "load"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.ClearDS(), ServerRoles.FindSocketRole("Admin"), "Removes all stuff in the DataStorage.", "removeData", "clearData", "deleteData"));
         }
 
         public static string GetHelpString(SocketUser user, DotCommand? command = null)

@@ -28,6 +28,7 @@ namespace Jovian
         static public DiscordSocketClient client;
         static private bool suspendLog;
         static IMessageChannel? botChannel;
+        static DataStorage storage;
         static IGuild Server => client.GetGuild(968156929744597062);
         public static IRole[] AllRoles => Server.Roles.ToArray();
         public static IUser BotOwner => Server.GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
@@ -65,10 +66,12 @@ namespace Jovian
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             startTime = DateTime.UtcNow;
+#if !DEBUG
             try
             {
                 Pi.Init<BootstrapWiringPi>();
             }catch { }
+#endif
         }
 
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -77,13 +80,15 @@ namespace Jovian
         }
 
         [STAThread]
-        public static async Task Main(string[] args)
+        public static async Task Main()
         {
+            storage = new DataStorage(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDomain.CurrentDomain.FriendlyName), "MainStorage");
+            await Log("Created DataStorage at " + storage.StoragePath);
             try
             {
                 await client.LoginAsync(TokenType.Bot, config["Token"]);
                 await client.StartAsync();
-                
+
 
                 await Task.Delay(-1);
             }catch (Exception ex)
@@ -91,7 +96,6 @@ namespace Jovian
                 await LogError(ex);
             }
         }
-
 
         private static async Task Client_Ready()
         {
@@ -105,7 +109,7 @@ namespace Jovian
                 await command.DeleteAsync();
             }
         }
-        #endregion
+#endregion
 
         private static async void CurrentDomain_ProcessExit(object? sender, EventArgs e)
         {
@@ -203,7 +207,7 @@ namespace Jovian
                         var userRoles = ((SocketGuildUser)message.Author).Roles;
                         if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole) || userRoles.Any(x => x.Name == "Admin"))
                         {
-                            await SendMessage($"{message.Author.Username} invoked command {command}.");
+                            await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."));
                             await Task.Delay(100);
                             dotCommand.Invoke(args, message.Author);
                             didInvoke = true;
@@ -459,7 +463,6 @@ namespace Jovian
         {
             public string? Joke { get; set; }
         }
-
         private static string FormatValue(this ulong value, string letter = "B", ulong divisionStep = 1024)
         {
             return FormatValue(value, letter, divisionStep, "0");
@@ -491,6 +494,60 @@ namespace Jovian
             }
             res += $"{span.Minutes} minute" + (span.Minutes != 1 ? "s" : "");
             return res;
+        }
+
+        public static async Task WriteDS(string args)
+        {
+            string[] arguments = args.Parse();
+            if (arguments.Length < 2) { await SendMessage("Can't create pairs of (ID, VALUE) of less than 2 arguments."); return; }
+            string data = "";
+            for (int i = 0; i < arguments.Length - 1; i += 2)
+            {
+                data += arguments[i] + " :\t";
+                data += arguments[i + 1]+"\n";
+                storage.WriteData(new DataChunk<string>(arguments[i], arguments[i + 1]));
+            }
+            await SendMessage("Succesfully written to data storage:\n" + data);
+        }
+
+        public static async Task ReadDS(string args)
+        {
+            List<DataChunk<string>> chunks = storage.GetChunks<string>()?.ToList()?? new List<DataChunk<string>>();
+            if (string.IsNullOrEmpty(args))
+            {
+                string msg = "All data in the DataStorage:\n";
+                if (chunks.Count < 1)
+                {
+                    msg += "(none)";
+                }else
+                {
+                    foreach (var item in chunks)
+                    {
+                        msg += $"{item.Id}: {item.Data}\n";
+                    }
+                }
+                await SendMessage(msg);
+            }else
+            {
+                string[] arguments = args.Parse();
+                string msg = "All data with key(s) ";
+                arguments.ToList().ForEach(x => msg += x + " ");
+                msg += "\n";
+                foreach (var item in chunks)
+                {
+                    if (arguments.Contains(item.Id))
+                    {
+                        msg += $"{item.Id}: {item.Data} \n";
+                    }
+                }
+                await SendMessage(msg);
+            }
+        }
+
+        public static async Task ClearDS()
+        {
+            storage.Clear();
+            await SendMessage("Removed everything in the DataStorage!");
         }
     }
 }
