@@ -526,9 +526,15 @@ namespace Jovian
             string data = "";
             for (int i = 0; i < arguments.Length - 1; i += 2)
             {
-                data += arguments[i] + " :\t";
-                data += arguments[i + 1]+"\n";
-                Storage.WriteData(new DataChunk<string>(arguments[i], arguments[i + 1]));
+
+                if (!Storage.WriteData(new DataChunk<string>(arguments[i], arguments[i + 1])))
+                {
+                    data += arguments[i] + ": Key is already in the DataStorage!";
+                }else
+                {
+                    data += arguments[i] + " :\t";
+                    data += arguments[i + 1] + "\n";
+                }
             }
             await SendMessage("Succesfully written to data storage:\n" + data);
         }

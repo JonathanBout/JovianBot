@@ -53,10 +53,15 @@ namespace Jovian
             }
         }
 
-        public void WriteData(DataChunk<T> chunk)
+        public bool WriteData(DataChunk<T> chunk)
         {
+            if (currentStorage.Any(x => x.Id == chunk.Id))
+            {
+                return false;
+            }
             currentStorage.Add(chunk);
             WriteText(chunk.ToJSON() + ",");
+            return true;
         }
 
         void WriteText(string text)
