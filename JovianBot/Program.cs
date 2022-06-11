@@ -35,6 +35,8 @@ namespace Jovian
 
         static readonly DateTime startTime;
         static bool isQuickStart = false;
+
+        public const char commandChar = '.';
         #region Constructor and Main
         static Program()
         {
@@ -76,6 +78,7 @@ namespace Jovian
 
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
+            await client.SetGameAsync($".NET FailFast");
             await SendMessage(Format.BlockQuote($"Exception caught:\n{((Exception)e.ExceptionObject).Message}\nI will go to sleep for safety, please ask {BotOwner.Mention} to restart me!"));
         }
 
@@ -107,11 +110,12 @@ namespace Jovian
             await Task.Delay(500);
             await SetChannelReadonly(false);
             if (!isQuickStart)
-                await SendMessage("I'm online! 🥳");
+                await SendMessage("@everyone I'm online! 🥳");
             foreach (var command in await Server.GetApplicationCommandsAsync())
             {
                 await command.DeleteAsync();
             }
+            await client.SetGameAsync("Discord.NET");
         }
 #endregion
 
@@ -119,6 +123,7 @@ namespace Jovian
         {
             try
             {
+                await client.SetGameAsync("Sleep");
                 await SendMessage($"I'm going offline👋");
                 await SetChannelReadonly(true);
                 await client.SetStatusAsync(UserStatus.Offline);
@@ -148,6 +153,7 @@ namespace Jovian
 
         public static async Task Reboot()
         {
+            await client.SetGameAsync("Reboot");
             await SendMessage("Wait a minute...");
             await SetChannelReadonly(true);
             var x = await Pi.RestartAsync();
@@ -192,9 +198,9 @@ namespace Jovian
                 if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
                     return;
 
-                if (message.Content.StartsWith('.'))
+                if (message.Content.StartsWith(commandChar))
                 {
-                    string commandWithArgs = message.Content.TrimStart('.', ' ');
+                    string commandWithArgs = message.Content.TrimStart(commandChar, ' ');
                     string args = string.Join(' ', commandWithArgs.Split(' ').Skip(1));
                     string command = string.Join("", commandWithArgs.Split(' ').Take(1));
                     bool didInvoke = false;
@@ -220,7 +226,7 @@ namespace Jovian
                     }
                     if (!didInvoke)
                     {
-                        await SendMessage($"I dont know what you mean by '{command}' 🤷");
+                        await SendMessage(Format.Bold($"I dont know what you mean by '{command}' 🤷"));
                     }
                     await message.DeleteAsync();
                 }
@@ -453,7 +459,7 @@ namespace Jovian
             int online = users.Where(x => x.Status != UserStatus.Offline).Count();
             int offline = totalUsers - online;
             int bots = users.Where(x => x.IsBot).Count();
-            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers} ({bots} bot{(bots == 1? "" : "s")})\nOnline: {online}\nOffline: {offline}");
+            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers} ({bots} bot{(bots == 1? "" : "s")})\nOnline: {online}\nOffline: {offline}\n\nLatency: {client.Latency}");
         }
         public static Task<string> GetBotStats()
         {
