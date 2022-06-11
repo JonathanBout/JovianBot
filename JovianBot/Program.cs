@@ -19,9 +19,11 @@ using Unosquare.RaspberryIO.Native;
 using Unosquare.RaspberryIO.Abstractions;
 using Unosquare.WiringPi;
 using Unosquare.RaspberryIO.Computer;
+using Swan;
 
 namespace Jovian
 {
+    // TO COPY TO RPi: run command scp -r C:\Users\jonat\source\repos\JovianBot\JovianBot\bin\Release\net6.0\publish\ pi@raspberryj:/home/pi/Jovian
     public static class Program
     {
         static readonly IConfiguration config;
@@ -74,6 +76,7 @@ namespace Jovian
                 Pi.Init<BootstrapWiringPi>();
             }catch { }
 #endif
+            Log("Started!");
         }
 
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -156,11 +159,12 @@ namespace Jovian
             await client.SetGameAsync("Reboot");
             await SendMessage("Wait a minute...");
             await SetChannelReadonly(true);
-            var x = await Pi.RestartAsync();
-            await Log($"Exit Code: {x.ExitCode}" +
-                $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
-                 $"\nError: {(string.IsNullOrEmpty(x.StandardError ) ? "(none)" : x.StandardError )}");
-            await SendMessage("I'm back!");
+            var x = await ProcessRunner.GetProcessOutputAsync("sudo reboot", "-h now");
+            await Log("result of reboot: " + x);
+            //await Log($"Exit Code: {x.ExitCode}" +
+            //    $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
+            //     $"\nError: {(string.IsNullOrEmpty(x.StandardError ) ? "(none)" : x.StandardError )}");
+            //await SendMessage("Hmmm... that did not work. " + (string.IsNullOrEmpty(x.StandardError) ? "" : x.StandardError));
         }
 
         public static async Task SetChannelReadonly(bool isReadonly)
