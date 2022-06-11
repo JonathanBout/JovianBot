@@ -80,6 +80,7 @@ namespace Jovian
         public void Clear()
         {
             File.WriteAllText(StoragePath, "[");
+            Reload();
         }
     }
 
