@@ -159,12 +159,11 @@ namespace Jovian
             await client.SetGameAsync("Reboot");
             await SendMessage("Wait a minute...");
             await SetChannelReadonly(true);
-            var x = await ProcessRunner.GetProcessOutputAsync("sudo reboot", "-h now");
-            await Log("result of reboot: " + x);
-            //await Log($"Exit Code: {x.ExitCode}" +
-            //    $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
-            //     $"\nError: {(string.IsNullOrEmpty(x.StandardError ) ? "(none)" : x.StandardError )}");
-            //await SendMessage("Hmmm... that did not work. " + (string.IsNullOrEmpty(x.StandardError) ? "" : x.StandardError));
+            var x = await Pi.RestartAsync();
+            await Log($"Exit Code: {x.ExitCode}" +
+                $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
+                 $"\nError: {(string.IsNullOrEmpty(x.StandardError) ? "(none)" : x.StandardError)}");
+            await SendMessage("Hmmm... that did not work. " + (string.IsNullOrEmpty(x.StandardError) ? "" : x.StandardError));
         }
 
         public static async Task SetChannelReadonly(bool isReadonly)
