@@ -163,7 +163,8 @@ namespace Jovian
             await Log($"Exit Code: {x.ExitCode}" +
                 $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
                  $"\nError: {(string.IsNullOrEmpty(x.StandardError) ? "(none)" : x.StandardError)}");
-            await SendMessage("Hmmm... that did not work. " + (string.IsNullOrEmpty(x.StandardError) ? "" : x.StandardError));
+            if (!string.IsNullOrEmpty(x.StandardError)) 
+                await SendMessage("Hmmm... that did not work. " + x.StandardError);
         }
 
         public static async Task SetChannelReadonly(bool isReadonly)
