@@ -31,9 +31,9 @@ namespace Jovian
         static private bool suspendLog;
         static IMessageChannel? botChannel;
         public static DataStorage<string> Storage { get; }
-        static IGuild Server => client.GetGuild(968156929744597062);
+        static IGuild Server => client.GetGuild(ulong.Parse(config["ServerGuild"]??"-1"));
         public static IRole[] AllRoles => Server.Roles.ToArray();
-        public static IUser BotOwner => Server.GetUserAsync(813736849482842153).GetAwaiter().GetResult();// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
+        public static IUser BotOwner => Server.GetUserAsync(ulong.Parse(config["BotOwnerID"]??"-1")).GetAwaiter().GetResult();// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
 
         static readonly DateTime startTime;
         static bool isQuickStart = false;
@@ -69,7 +69,8 @@ namespace Jovian
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             startTime = DateTime.UtcNow;
-            Storage = new DataStorage<string>(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppDomain.CurrentDomain.FriendlyName + "_DataStorage"), "MainStorage");
+            Storage = new DataStorage<string>(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                AppDomain.CurrentDomain.FriendlyName + "_DataStorage"), "MainStorage");
 #if !DEBUG
             try
             {
@@ -82,14 +83,15 @@ namespace Jovian
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             await client.SetGameAsync($".NET FailFast");
-            await SendMessage(Format.BlockQuote($"Exception caught:\n{((Exception)e.ExceptionObject).Message}\nI will go to sleep for safety, please ask {BotOwner.Mention} to restart me!"));
+            await SendMessage(Format.BlockQuote($"Exception caught:\n{((Exception)e.ExceptionObject).Message}\n" +
+                $"I will go to sleep for safety, please ask {BotOwner.Mention} to restart me!"));
         }
 
         [STAThread]
         public static async Task Main()
         {
             
-            await Log("Created DataStorage at " + Storage.StoragePath);
+            await Log("Created/Loaded DataStorage at " + Storage.StoragePath);
             try
             {
                 await client.LoginAsync(TokenType.Bot, config["Token"]);
@@ -109,7 +111,7 @@ namespace Jovian
 
         private static async Task Client_Ready()
         {
-            botChannel = await client.GetChannelAsync(968176792751976490) as IMessageChannel;
+            botChannel = await client.GetChannelAsync(ulong.Parse(config["BotChannelGuild"] ?? "-1")) as IMessageChannel;
             await Task.Delay(500);
             await SetChannelReadonly(false);
             if (!isQuickStart)
@@ -440,9 +442,11 @@ namespace Jovian
                 amount = 1;
             }else
             {
-                amount = Math.Clamp(amount, 1, Math.Max(1000/client.Latency, 1));
+                amount = Math.Max(amount, 1);
             }
 
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
             do
             {
                 RestClient client = new RestClient("https://icanhazdadjoke.com/");
@@ -451,7 +455,7 @@ namespace Jovian
                 RestResponse response = await client.GetAsync(request);
                 joke += (JsonConvert.DeserializeObject<JokeObject>(response.Content ?? "")?.Joke ?? "No joke found 🤷") + "\n\n";
                 amount--;
-            } while (amount > 0);
+            } while (amount > 0 && watch.ElapsedMilliseconds < 1500);
             return joke;
         }
 
@@ -474,7 +478,7 @@ namespace Jovian
                 retVal += $"OS: {Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
                 retVal += $"System Uptime:\t {Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
                 retVal += $"Bot uptime:\t\t\t {(DateTime.Now - startTime).ToTimeString()}\n";
-                retVal += $"Total RAM: {FormatValue(Pi.Info.InstalledRam)}\n";
+                retVal += $"Total RAM: {FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
                 return Task.FromResult(Format.BlockQuote(retVal));
             }catch (Exception ex)
             {
@@ -489,10 +493,6 @@ namespace Jovian
         class JokeObject
         {
             public string? Joke { get; set; }
-        }
-        private static string FormatValue(this ulong value, string letter = "B", ulong divisionStep = 1024)
-        {
-            return FormatValue(value, letter, divisionStep, "0");
         }
 
         private static string FormatValue(this decimal value, string letter = "B", decimal divisionStep = 1024.0m, string format = "0.00")

@@ -26,7 +26,7 @@ namespace Jovian
             Commands.Add(new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
             Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetStats()), "Shows some statistics about this server.", "serverstats", "server", "serverinfo"));
             Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "botstats", "bot", "botinfo", "jovian"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.WriteDS(x), "Splits the parameters and writes them to a Database in the form (ID, VALUE)", "write", "store", "save"));
+            Commands.Add(new DotCommand(async (x, y) => await Program.WriteDS(x), "Splits the parameters in pairs and writes them to a Database in the form (ID, VALUE)", "write", "store", "save"));
             Commands.Add(new DotCommand(async (x, y) => await Program.ReadDS(x), "Reads all stuff or a specific key in the DataStorage.", "read", "get", "load"));
             Commands.Add(new DotCommand(async (x, y) => await Program.ClearDS(), ServerRoles.FindSocketRole("Admin"), "Removes all stuff in the DataStorage.", "removedata", "cleardata", "deletedata"));
             Commands.Add(new DotCommand(      (x, y) => throw new IgnoredException(x), ServerRoles.FindSocketRole("Admin"), "Throws an Exception, so that the bot crashes.", "error", "bug"));
