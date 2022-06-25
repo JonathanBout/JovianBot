@@ -19,14 +19,16 @@ namespace Jovian
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
                 RedirectStandardInput = true,
-                FileName = "/bin/bash"
+                FileName = "/bin/bash",
+                UseShellExecute = true,
+                Arguments = command,
             };
             try
             {
                 if (Process.Start(inf) is Process cmd)
                 {
-                    await cmd.StandardInput.WriteAsync(command);
-                    await Task.Delay(1000);
+                    //await cmd.StandardInput.WriteAsync(command);
+                    //await Task.Delay(1000);
                     string ret = "Output: " + await cmd.StandardOutput.ReadToEndAsync();
                     ret += "\nError Output: " + await cmd.StandardError.ReadToEndAsync();
                     await Program.Log(ret);
