@@ -34,7 +34,7 @@ namespace Jovian
                 }
             }catch (Exception ex)
             {
-                return "Error: " + ex.Message;
+                throw;
             }
             return "Can't open " + inf.FileName;
         }
