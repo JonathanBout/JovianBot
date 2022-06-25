@@ -463,19 +463,20 @@ namespace Jovian
                 int online = users.Where(x => x.Status != UserStatus.Offline).Count();
                 int offline = totalUsers - online;
                 int bots = users.Where(x => x.IsBot).Count();
-
-                retVal += $"Hardware:\t\t\t\tRaspberry PI Model 3B+\n";
-                retVal += $"Total System RAM:\t{FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
-                retVal += $"OS:\t\t\t\t\t\t\t{Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
-                retVal += $"System Uptime:\t\t{Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
-                retVal += $"Bot Uptime:\t\t\t\t{(DateTime.UtcNow - startTime).ToTimeString()}\n";
-                retVal += $"Bot Latency:\t\t\t\t{client.Latency}\n\n";
-
+                string valPart = "";
+                valPart += $"Hardware:          Raspberry PI Model 3B+\n";
+                valPart += $"Total System RAM:  {FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
+                valPart += $"OS:                {Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
+                valPart += $"System Uptime:     {Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
+                valPart += $"Bot Uptime:        {(DateTime.UtcNow - startTime).ToTimeString()}\n";
+                valPart += $"Bot Latency:       {client.Latency} ms";
+                retVal += Format.Code(valPart) + "\n";
+                valPart = "";
                 retVal += Format.Bold("Server Stats:\n");
-                retVal += $"Total Members:\t{FormatValue(totalUsers, "", 1000, "0")} ({bots} bot{(bots == 1 ? "" : "s")})\n";
-                retVal += $"Online: {online}\n";
-                retVal += $"Offline: {offline}\n";
-
+                valPart += $"Total Members:     {FormatValue(totalUsers, "", 1000, "0")} ({bots} bot{(bots == 1 ? "" : "s")})\n";
+                valPart += $"Online:            {online}\n";
+                valPart += $"Offline:           {offline}\n";
+                retVal += Format.Code(valPart);
                 return Format.BlockQuote(retVal);
             }catch (Exception ex)
             {
