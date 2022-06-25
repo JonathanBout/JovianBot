@@ -35,7 +35,7 @@ namespace Jovian
                 }
             }catch (Exception ex)
             {
-                await Program.LogError(ex.Message);
+                await Program.LogError(ex);
             }
             return "Can't open " + inf.FileName;
         }
