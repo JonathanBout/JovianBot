@@ -464,14 +464,14 @@ namespace Jovian
                 int offline = totalUsers - online;
                 int bots = users.Where(x => x.IsBot).Count();
 
-                retVal += $"Hardware:\t\t\tRaspberry PI Model 3B+\n";
-                retVal += $"Total System RAM:\t\t\t{FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
-                retVal += $"OS:\t\t\t\t\t{Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
-                retVal += $"System Uptime:\t{Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
-                retVal += $"Bot Uptime:\t\t\t{(DateTime.UtcNow - startTime).ToTimeString()}\n";
-                retVal += $"Bot Latency: {client.Latency}";
+                retVal += $"Hardware:\t\t\t\tRaspberry PI Model 3B+\n";
+                retVal += $"Total System RAM:\t{FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
+                retVal += $"OS:\t\t\t\t\t\t\t{Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
+                retVal += $"System Uptime:\t\t{Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
+                retVal += $"Bot Uptime:\t\t\t\t{(DateTime.UtcNow - startTime).ToTimeString()}\n";
+                retVal += $"Bot Latency:\t\t\t\t{client.Latency}\n\n";
 
-                retVal += Format.Bold("Server Stats:");
+                retVal += Format.Bold("Server Stats:\n");
                 retVal += $"Total Members:\t{FormatValue(totalUsers, "", 1000, "0")} ({bots} bot{(bots == 1 ? "" : "s")})\n";
                 retVal += $"Online: {online}\n";
                 retVal += $"Offline: {offline}\n";
