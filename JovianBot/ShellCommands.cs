@@ -26,6 +26,7 @@ namespace Jovian
                 if (Process.Start(inf) is Process cmd)
                 {
                     await cmd.StandardInput.WriteAsync(command);
+                    await Task.Delay(1000);
                     string ret = "Output: " + await cmd.StandardOutput.ReadToEndAsync();
                     ret += "\nError Output: " + await cmd.StandardError.ReadToEndAsync();
                     return ret;
