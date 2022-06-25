@@ -23,20 +23,15 @@ namespace Jovian
                 UseShellExecute = true,
                 Arguments = command,
             };
-            try
+
+            if (Process.Start(inf) is Process cmd)
             {
-                if (Process.Start(inf) is Process cmd)
-                {
-                    //await cmd.StandardInput.WriteAsync(command);
-                    //await Task.Delay(1000);
-                    string ret = "Output: " + await cmd.StandardOutput.ReadToEndAsync();
-                    ret += "\nError Output: " + await cmd.StandardError.ReadToEndAsync();
-                    await Program.Log(ret);
-                    return ret;
-                }
-            }catch (Exception ex)
-            {
-                throw;
+                //await cmd.StandardInput.WriteAsync(command);
+                //await Task.Delay(1000);
+                string ret = "Output: " + await cmd.StandardOutput.ReadToEndAsync();
+                ret += "\nError Output: " + await cmd.StandardError.ReadToEndAsync();
+                await Program.Log(ret);
+                return ret;
             }
             return "Can't open " + inf.FileName;
         }
