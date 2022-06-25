@@ -19,7 +19,7 @@ namespace Jovian
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
                 RedirectStandardInput = true,
-                FileName = "/usr/bin/bash"
+                FileName = "/bin/bash"
             };
             try
             {
