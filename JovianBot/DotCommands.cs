@@ -68,29 +68,34 @@ namespace Jovian
     public class DotCommand
     {
         string[] Keys { get; }
-        Action<string, SocketUser> Function { get; }
+        Func<string, SocketUser, Task> Function { get; }
         public string Description { get; }
         public SocketRole? MandatoryRole = null;
 
         public string FirstKey => Keys[0];
-        public DotCommand(Action<string, SocketUser> function, string description, params string[] keys)
+        public DotCommand(Func<string, SocketUser, Task> function, string description, params string[] keys)
         {
             Keys = keys;
             Description = description;
-            Function = (Action<string, SocketUser>) function.Clone();
+            Function = (Func<string, SocketUser, Task>) function.Clone();
         }
 
-        public DotCommand(Action<string, SocketUser> function, SocketRole? mandatoryRole, string description, params string[] keys)
+        public DotCommand(Func<string, SocketUser, Task> function, SocketRole? mandatoryRole, string description, params string[] keys)
         {
             Keys = keys;
             Description = description;
             MandatoryRole = mandatoryRole;
-            Function = (Action<string, SocketUser>) function.Clone();
+            Function = (Func<string, SocketUser, Task>) function.Clone();
         }
 
         public void Invoke(string args, SocketUser user)
         {
-            Function.Invoke(args, user);
+            Function.Invoke(args, user).Wait();
+        }
+
+        public async Task InvokeAsync(string args, SocketUser user)
+        {
+            await Function.Invoke(args, user);
         }
 
         public bool ContainsKey(string key)

@@ -97,7 +97,6 @@ namespace Jovian
                 await client.LoginAsync(TokenType.Bot, config["Token"]);
                 await client.StartAsync();
 
-
                 await Task.Delay(-1);
             }catch (Exception ex)
             {
@@ -116,10 +115,6 @@ namespace Jovian
             await SetChannelReadonly(false);
             if (!isQuickStart)
                 await SendMessage("@everyone I'm online! 🥳");
-            foreach (var command in await Server.GetApplicationCommandsAsync())
-            {
-                await command.DeleteAsync();
-            }
             await client.SetGameAsync("Discord.NET");
         }
 #endregion
@@ -219,13 +214,12 @@ namespace Jovian
                             if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole) || userRoles.Any(x => x.Name == "Admin"))
                             {
                                 await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."));
-                                await Task.Delay(100);
-                                dotCommand.Invoke(args, message.Author);
+                                await dotCommand.InvokeAsync(args, message.Author);
                                 didInvoke = true;
                                 break;
                             }else
                             {
-                                await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command, although they tried to invoke it.");
+                                await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command.");
                                 didInvoke = true;
                             }
                         }
@@ -349,7 +343,7 @@ namespace Jovian
                 await SetChannelReadonly(true);
                 suspendLog = true;
                 IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
-                var mes = await SendMessage("Please wait while i remove all the messages...");
+                var mes = await SendMessage("Please wait while I remove all the messages...");
                 int messagesCount = 0;
                 await foreach(IMessage message in messages.Flatten())
                 {
@@ -467,18 +461,19 @@ namespace Jovian
             int online = users.Where(x => x.Status != UserStatus.Offline).Count();
             int offline = totalUsers - online;
             int bots = users.Where(x => x.IsBot).Count();
-            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers} ({bots} bot{(bots == 1? "" : "s")})\nOnline: {online}\nOffline: {offline}\n\nLatency: {client.Latency}");
+            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers}" +
+                $" ({bots} bot{(bots == 1? "" : "s")})\nOnline: {online}\nOffline: {offline}\n\nLatency: {client.Latency}");
         }
         public static Task<string> GetBotStats()
         {
             string retVal = $"{Format.Bold($"Bot Stats{(Debugger.IsAttached ? " [DEBUG MODE]" : "")}:")}\n";
             try
             {
-                retVal += $"Bot runs on a Raspberry PI Model 3B+.\n";
-                retVal += $"OS: {Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
-                retVal += $"System Uptime:\t {Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
-                retVal += $"Bot uptime:\t\t\t {(DateTime.Now - startTime).ToTimeString()}\n";
-                retVal += $"Total RAM: {FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
+                retVal += $"Hardware:\t\t\tRaspberry PI Model 3B+\n";
+                retVal += $"OS:\t\t\t\t{Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
+                retVal += $"System Uptime:\t{Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
+                retVal += $"Bot uptime:\t\t\t{(DateTime.UtcNow - startTime).ToTimeString()}\n";
+                retVal += $"Total RAM:\t\t\t{FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
                 return Task.FromResult(Format.BlockQuote(retVal));
             }catch (Exception ex)
             {
@@ -533,10 +528,10 @@ namespace Jovian
 
                 if (!Storage.WriteData(new DataChunk<string>(arguments[i], arguments[i + 1])))
                 {
-                    data += arguments[i] + ": Key is already in the DataStorage!";
+                    data += arguments[i] + ": Key is already in the DataStorage!\n";
                 }else
                 {
-                    data += arguments[i] + " :\t";
+                    data += arguments[i] + " :\t\t\t";
                     data += arguments[i + 1] + "\n";
                 }
             }
@@ -563,11 +558,11 @@ namespace Jovian
             }else
             {
                 string[] arguments = args.Parse();
-                string msg = "All data with key";
+                string msg = "Data at key";
                 if (arguments.Length > 1)
                 {
-                    msg += "s";
-                    arguments.Take(arguments.Length - 1).ToList().ForEach(x => msg += ", " + x);
+                    msg += "s " + arguments[0];
+                    arguments.Take(arguments.Length - 1).Skip(1).ToList().ForEach(x => msg += ", " + x);
                     msg += " and " + arguments[^1];
                 }else
                 {
@@ -578,7 +573,10 @@ namespace Jovian
                 {
                     if (arguments.Contains(item.Id))
                     {
-                        msg += $"{item.Id}: {item.Data} \n";
+                        msg += $"{item.Id}: {item.Data}\n";
+                    }else
+                    {
+                        msg += $"{item.Id}: Not Found\n";
                     }
                 }
                 await SendMessage(msg);
