@@ -453,35 +453,37 @@ namespace Jovian
             return joke;
         }
 
-        public static async Task<string> GetStats()
-        {
-
-            IGuildUser[] users = (await Server.GetUsersAsync()).ToArray();
-            int totalUsers = users.Length;
-            int online = users.Where(x => x.Status != UserStatus.Offline).Count();
-            int offline = totalUsers - online;
-            int bots = users.Where(x => x.IsBot).Count();
-            return Format.BlockQuote($"{Format.Bold("Server Stats:")}\nTotal Members: {totalUsers}" +
-                $" ({bots} bot{(bots == 1? "" : "s")})\nOnline: {online}\nOffline: {offline}\n\nLatency: {client.Latency}");
-        }
-        public static Task<string> GetBotStats()
+        public static async Task<string> GetBotStats()
         {
             string retVal = $"{Format.Bold($"Bot Stats{(Debugger.IsAttached ? " [DEBUG MODE]" : "")}:")}\n";
             try
             {
+                IGuildUser[] users = (await Server.GetUsersAsync()).ToArray();
+                int totalUsers = users.Length;
+                int online = users.Where(x => x.Status != UserStatus.Offline).Count();
+                int offline = totalUsers - online;
+                int bots = users.Where(x => x.IsBot).Count();
+
                 retVal += $"Hardware:\t\t\tRaspberry PI Model 3B+\n";
-                retVal += $"OS:\t\t\t\t{Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
+                retVal += $"Total System RAM:\t\t\t{FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
+                retVal += $"OS:\t\t\t\t\t{Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
                 retVal += $"System Uptime:\t{Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
-                retVal += $"Bot uptime:\t\t\t{(DateTime.UtcNow - startTime).ToTimeString()}\n";
-                retVal += $"Total RAM:\t\t\t{FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
-                return Task.FromResult(Format.BlockQuote(retVal));
+                retVal += $"Bot Uptime:\t\t\t{(DateTime.UtcNow - startTime).ToTimeString()}\n";
+                retVal += $"Bot Latency: {client.Latency}";
+
+                retVal += Format.Bold("Server Stats:");
+                retVal += $"Total Members:\t{FormatValue(totalUsers, "", 1000, "0")} ({bots} bot{(bots == 1 ? "" : "s")})\n";
+                retVal += $"Online: {online}\n";
+                retVal += $"Offline: {offline}\n";
+
+                return Format.BlockQuote(retVal);
             }catch (Exception ex)
             {
                 if (ex is IgnoredException)
                 {
                     throw;
                 }
-                return Task.FromResult(Format.Bold("Error: " + ex.Message));
+                return Format.Bold("Error: " + ex.Message);
             }
         }
 
