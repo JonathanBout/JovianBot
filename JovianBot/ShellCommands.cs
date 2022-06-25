@@ -15,7 +15,7 @@ namespace Jovian
         public static async Task<string> Execute(string command)
         {
             string[] args = command.Parse();
-            if (args.Length > 2)
+            if (args.Length >= 2)
             {
                 var stdOutBuffer = new StringBuilder();
                 var stdErrBuffer = new StringBuilder();
