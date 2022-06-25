@@ -17,18 +17,32 @@ namespace Jovian
             string[] args = command.Parse();
             if (args.Length >= 2)
             {
-                var stdOutBuffer = new StringBuilder();
-                var stdErrBuffer = new StringBuilder();
+                try
+                {
+                    var stdOutBuffer = new StringBuilder();
+                    var stdErrBuffer = new StringBuilder();
 
-                var result = await Cli.Wrap(args[0]).WithArguments(args.Skip(1))
-                    .WithStandardOutputPipe(PipeTarget.ToStringBuilder(stdOutBuffer))
-                    .WithStandardErrorPipe(PipeTarget.ToStringBuilder(stdErrBuffer))
-                    .ExecuteAsync();
-
-                string ret = "Output: " + stdOutBuffer.ToString();
-                ret += "\nError Output: " + stdErrBuffer.ToString();
-                await Program.Log(ret);
-                return ret;
+                    var result = await Cli.Wrap(args[0]).WithArguments(args.Skip(1))
+                        .WithStandardOutputPipe(PipeTarget.ToStringBuilder(stdOutBuffer))
+                        .WithStandardErrorPipe(PipeTarget.ToStringBuilder(stdErrBuffer))
+                        .ExecuteAsync();
+                    string output = stdOutBuffer.ToString();
+                    string error = stdErrBuffer.ToString();
+                    string ret = "";
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        ret += output;
+                    }
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        ret += error;
+                    }
+                    await Program.Log(ret);
+                    return ret;
+                }catch (Exception ex)
+                {
+                    return ex.Message;
+                }
             }
             else
             {
