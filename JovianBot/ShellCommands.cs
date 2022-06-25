@@ -20,7 +20,6 @@ namespace Jovian
                 RedirectStandardOutput = true,
                 RedirectStandardInput = true,
                 FileName = "/bin/bash",
-                UseShellExecute = true,
                 Arguments = command,
             };
             try
