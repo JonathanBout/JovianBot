@@ -252,7 +252,7 @@ namespace Jovian
             return Task.CompletedTask;
         }
 
-        static Task Log(string msg, bool newLine = true)
+        public static Task Log(string msg, bool newLine = true)
         {
             Console.Write(msg + (newLine ? Environment.NewLine : ""));
             return Task.CompletedTask;

@@ -29,6 +29,7 @@ namespace Jovian
                     await Task.Delay(1000);
                     string ret = "Output: " + await cmd.StandardOutput.ReadToEndAsync();
                     ret += "\nError Output: " + await cmd.StandardError.ReadToEndAsync();
+                    await Program.Log(ret);
                     return ret;
                 }
             }catch (Exception ex)
