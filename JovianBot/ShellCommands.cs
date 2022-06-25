@@ -19,7 +19,7 @@ namespace Jovian
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
                 RedirectStandardInput = true,
-                FileName = "cmd.exe"
+                FileName = "/usr/bin/bash"
             };
             try
             {
