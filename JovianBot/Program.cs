@@ -403,7 +403,7 @@ namespace Jovian
                 await SendMessage("I don't know that language (yet)");
         }
 
-        private static string[] Parse(this string str)
+        public static string[] Parse(this string str)
         {
             var retval = new List<string>();
             if (string.IsNullOrWhiteSpace(str)) return retval.ToArray();

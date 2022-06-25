@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Unosquare.RaspberryIO;
 using Swan;
 using System.Diagnostics;
+using CliWrap;
 
 namespace Jovian
 {
@@ -13,31 +14,26 @@ namespace Jovian
     {
         public static async Task<string> Execute(string command)
         {
-            ProcessStartInfo inf = new()
+            string[] args = command.Parse();
+            if (args.Length > 2)
             {
-                CreateNoWindow = true,
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                RedirectStandardInput = true,
-                FileName = "/bin/bash",
-                Arguments = command,
-            };
+                var stdOutBuffer = new StringBuilder();
+                var stdErrBuffer = new StringBuilder();
 
-            try
-            {
-                if (Process.Start(inf) is Process cmd)
-                {
-                    string ret = "Output: " + await cmd.StandardOutput.ReadToEndAsync();
-                    ret += "\nError Output: " + await cmd.StandardError.ReadToEndAsync();
-                    await Program.Log(ret);
-                    return ret;
-                    
-                }
-            }catch (Exception ex)
-            {
-                await Program.LogError(ex);
+                var result = await Cli.Wrap(args[0]).WithArguments(args.Skip(1))
+                    .WithStandardOutputPipe(PipeTarget.ToStringBuilder(stdOutBuffer))
+                    .WithStandardErrorPipe(PipeTarget.ToStringBuilder(stdErrBuffer))
+                    .ExecuteAsync();
+
+                string ret = "Output: " + stdOutBuffer.ToString();
+                ret += "\nError Output: " + stdErrBuffer.ToString();
+                await Program.Log(ret);
+                return ret;
             }
-            return "Can't open " + inf.FileName;
+            else
+            {
+                return "Too few arguments (at least 2)";
+            }
         }
     }
 }
