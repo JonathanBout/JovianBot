@@ -22,20 +22,20 @@ namespace Jovian
                 FileName = "/bin/bash",
                 Arguments = command,
             };
+
             try
             {
                 if (Process.Start(inf) is Process cmd)
                 {
-                    //await cmd.StandardInput.WriteAsync(command);
-                    //await Task.Delay(1000);
                     string ret = "Output: " + await cmd.StandardOutput.ReadToEndAsync();
                     ret += "\nError Output: " + await cmd.StandardError.ReadToEndAsync();
                     await Program.Log(ret);
                     return ret;
+                    
                 }
             }catch (Exception ex)
             {
-                await Program.Log(ex.Message);
+                await Program.LogError(ex.Message);
             }
             return "Can't open " + inf.FileName;
         }

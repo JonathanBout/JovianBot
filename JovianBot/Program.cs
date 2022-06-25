@@ -258,14 +258,14 @@ namespace Jovian
             return Task.CompletedTask;
         }
 
-        static Task LogError(Exception ex)
+        public static Task LogError(Exception ex)
         {
 #if !DEBUG
             var data = $"message: {ex.Message}\nsource:{ex.Source}";
-            ConsoleColor original = Console.BackgroundColor;
-            Console.BackgroundColor = ConsoleColor.Red;
+            ConsoleColor original = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(data);
-            Console.BackgroundColor = original;
+            Console.ForegroundColor = original;
             return Task.CompletedTask;
 #else
             throw ex;
