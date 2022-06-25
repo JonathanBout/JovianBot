@@ -464,7 +464,7 @@ namespace Jovian
                 int offline = totalUsers - online;
                 int bots = users.Where(x => x.IsBot).Count();
                 string valPart = "";
-                valPart += $"Hardware:          Raspberry PI Model 3B+\n";
+                valPart += $"Hardware:          Raspberry PI Model 3B+              \n";
                 valPart += $"Total System RAM:  {FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
                 valPart += $"OS:                {Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
                 valPart += $"System Uptime:     {Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
