@@ -22,7 +22,7 @@ namespace Jovian
         public static IRole[] AllRoles => Server.Roles.ToArray();
         public static IUser BotOwner => Server.GetUserAsync(ulong.Parse(config["BotOwnerID"]??"-1")).GetAwaiter().GetResult();// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
 
-        static readonly DateTime startTime;
+        static DateTime startTime { get; }
         static bool isQuickStart = false;
 
         public const char commandChar = '.';
@@ -160,26 +160,6 @@ namespace Jovian
             await ((IGuildChannel)botChannel).AddPermissionOverwriteAsync(ServerRoles.Find("@everyone"), perms);
         }
 
-        static async Task<bool> ButtonUpdate(SocketMessageComponent arg, string content, bool doCheck = true)
-        {
-            if (((SocketGuildUser)arg.User).Roles.Any(x => x == ServerRoles.FindSocketRole("Admin")) || !doCheck || arg.Data.CustomId == "cancelbutton")
-            {
-                await arg.UpdateAsync(x => 
-                { 
-                    x.Components = new ComponentBuilder()
-                    .WithButton("Ok", "okbutton", ButtonStyle.Danger, disabled: true)
-                    .WithButton("Cancel", "cancelbutton", ButtonStyle.Secondary, disabled: true)
-                    .Build(); x.Content = content; 
-                });
-                return true;
-            }
-            else
-            {
-                await ButtonUpdate(arg, $"HAHAHAHA user {arg.User.Mention} does not have the rights to shut me down, so i wont 😝", false);
-                return false;
-            }
-        }
-
         private static async Task MessageReceivedAsync(SocketMessage message)
         {
             try
@@ -263,7 +243,7 @@ namespace Jovian
 
         public static async Task<IUserMessage> SendMessage(string message)
         {
-            return await SendMessage(message);
+            return await SendMessage(message, null);
         }
 
         public static async Task<IUserMessage> SendError(Exception error)
