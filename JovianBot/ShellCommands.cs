@@ -7,6 +7,7 @@ using Unosquare.RaspberryIO;
 using Swan;
 using System.Diagnostics;
 using CliWrap;
+using Discord;
 
 namespace Jovian
 {
@@ -34,11 +35,11 @@ namespace Jovian
 
                 if (!string.IsNullOrEmpty(output))
                 {
-                    ret += "Output: " + output + "\n";
+                    ret += "Output:\n"+ Format.Code(output,"bash") + "\n";
                 }
                 if (!string.IsNullOrEmpty(error))
                 {
-                    ret += "Error: " + error + "\n";
+                    ret += "Error:\n" + Format.Code(error, "bash") + "\n";
                 }
                 await Program.Log(ret);
                 return ret;
