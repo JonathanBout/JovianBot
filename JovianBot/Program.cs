@@ -63,10 +63,6 @@ namespace Jovian
             }catch (Exception ex)
             {
                 LogError(new Exception("Failed to initialize the Pi Object: " + ex.Message));
-                if (Debugger.IsAttached)
-                {
-                    throw;
-                }
             }
             Log("Started!");
         }
