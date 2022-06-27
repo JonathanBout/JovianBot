@@ -42,7 +42,7 @@ namespace Jovian
 
         public DataChunk<T>? GetChunkByID(string ID)
         {
-            return GetChunks()?.First(x => x.Id == ID);
+            return GetChunks()?.First(x => x.Key == ID);
         }
 
         public string GetText()
@@ -55,7 +55,7 @@ namespace Jovian
 
         public bool WriteData(DataChunk<T> chunk)
         {
-            if (currentStorage.Any(x => x.Id == chunk.Id))
+            if (currentStorage.Any(x => x.Key == chunk.Key))
             {
                 return false;
             }
@@ -91,20 +91,20 @@ namespace Jovian
 
     public class DataChunk<T> : DataChunk where T : notnull
     {
-        public new T Data => (T)base.Data;
+        public new T Value => (T)base.Value;
         public DataChunk(string id, T data) : base(id, data) { }
     }
 
     public class DataChunk
     {
-        public string Id { get; init; }
+        public string Key { get; init; }
 
-        public object Data { get; init; }
+        public object Value { get; init; }
 
         public DataChunk(string id, object data)
         {
-            Id = id;
-            Data = data;
+            Key = id;
+            Value = data;
         }
 
         public virtual string ToJSON()

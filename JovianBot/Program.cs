@@ -549,7 +549,7 @@ namespace Jovian
                 {
                     foreach (var item in chunks)
                     {
-                        msg += $"{item.Id}: {item.Data}\n";
+                        msg += $"{item.Key}: {item.Value}\n";
                     }
                 }
                 await SendMessage(msg);
@@ -569,12 +569,12 @@ namespace Jovian
                 msg += ":\n";
                 foreach (var item in chunks)
                 {
-                    if (arguments.Contains(item.Id))
+                    if (arguments.Contains(item.Key))
                     {
-                        msg += $"{item.Id}: {item.Data}\n";
+                        msg += $"{item.Key}: {item.Value}\n";
                     }else
                     {
-                        msg += $"{item.Id}: Not Found\n";
+                        msg += $"{item.Key}: Not Found\n";
                     }
                 }
                 await SendMessage(msg);
