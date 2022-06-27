@@ -1,25 +1,12 @@
 ﻿using Discord;
-using Discord.Commands;
-using Discord.Net;
-using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.Json;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using RestSharp;
-using System.Runtime.InteropServices;
-using Unosquare.RaspberryIO;
-using Unosquare.RaspberryIO.Native;
-using Unosquare.RaspberryIO.Abstractions;
-using Unosquare.WiringPi;
-using Unosquare.RaspberryIO.Computer;
 using Swan;
+using System.Diagnostics;
+using Unosquare.RaspberryIO;
+using Unosquare.WiringPi;
 
 namespace Jovian
 {
@@ -75,7 +62,10 @@ namespace Jovian
             try
             {
                 Pi.Init<BootstrapWiringPi>();
-            }catch { }
+            }catch
+            {
+                LogError(new Exception("Failed to initialize the Pi Object"));
+            }
 #endif
             Log("Started!");
         }
@@ -83,8 +73,7 @@ namespace Jovian
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             await client.SetGameAsync($".NET FailFast");
-            await SendMessage(Format.BlockQuote($"Exception caught:\n{((Exception)e.ExceptionObject).Message}\n" +
-                $"I will go to sleep for safety, please ask {BotOwner.Mention} to restart me!"));
+            await SendError(e.ExceptionObject as Exception?? new Exception("Everything went so badly, even the Exception is not valid!"));
         }
 
         [STAThread]
@@ -161,7 +150,7 @@ namespace Jovian
                 $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
                  $"\nError: {(string.IsNullOrEmpty(x.StandardError) ? "(none)" : x.StandardError)}");
             if (!string.IsNullOrEmpty(x.StandardError)) 
-                await SendMessage("Hmmm... that did not work. " + x.StandardError);
+                await SendError(new Exception("Hmmm... that did not work. " + x.StandardError));
         }
 
         public static async Task SetChannelReadonly(bool isReadonly)
@@ -226,7 +215,7 @@ namespace Jovian
                     }
                     if (!didInvoke)
                     {
-                        await SendMessage(Format.Bold($"I dont know what you mean by '{command}' 🤷"));
+                        await SendError(new Exception(Format.Bold($"I dont know what you mean by '{command}' 🤷")));
                     }
                     await message.DeleteAsync();
                 }
@@ -274,21 +263,27 @@ namespace Jovian
 
         public static async Task<IUserMessage> SendMessage(string message)
         {
-            return await SendMessage(message, null);
+            return await SendMessage(message);
         }
 
-        public static async Task<IUserMessage> SendMessage(string message, MessageComponent? components)
+        public static async Task<IUserMessage> SendError(Exception error)
+        {
+            EmbedBuilder builder = new EmbedBuilder().WithColor(Color.Red);
+            return await SendMessage("Error: " + error.Message, embed: builder.Build());
+        }
+
+        public static async Task<IUserMessage> SendMessage(string message, MessageComponent? components = null, Embed? embed = null)
         {
             if (botChannel is IMessageChannel channel)
             {
-                return await channel.SendMessageAsync(message, components: components);
+                return await channel.SendMessageAsync(message, components: components, embed: embed);
             }
-            throw new NullReferenceException("botChannel was null.");
+            throw new NullReferenceException("botchannel was null.");
         }
 
         public static async Task MakePoll(string args)
         {
-            if (args.Parse().Length <= 2) { await SendMessage("Too few arguments!"); return; }
+            if (args.Parse().Length <= 2) { await SendError(new Exception("Too few arguments!")); return; }
             if (botChannel is not null)
             {
                 string[] argsArray = args.Parse();
@@ -400,7 +395,7 @@ namespace Jovian
             if (s != "")
                 await SendMessage($"Hello World code snippet ({string.Join(" ", args).ToUpper()}):\n{s}");
             else
-                await SendMessage("I don't know that language (yet)");
+                await SendError(new Exception("I don't know that language (yet)"));
         }
 
         public static string[] Parse(this string str)
@@ -524,7 +519,7 @@ namespace Jovian
         public static async Task WriteDS(string args)
         {
             string[] arguments = args.Parse();
-            if (arguments.Length < 2) { await SendMessage("Can't create pairs of (ID, VALUE) of less than 2 arguments."); return; }
+            if (arguments.Length < 2) { await SendError(new Exception("Can't create pairs of (ID, VALUE) of less than 2 arguments.")); return; }
             string data = "";
             for (int i = 0; i < arguments.Length - 1; i += 2)
             {

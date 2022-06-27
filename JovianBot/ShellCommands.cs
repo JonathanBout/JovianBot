@@ -31,11 +31,11 @@ namespace Jovian
                     string ret = "";
                     if (!string.IsNullOrEmpty(output))
                     {
-                        ret += output;
+                        ret += "Output: " + output + "\n";
                     }
                     if (!string.IsNullOrEmpty(error))
                     {
-                        ret += error;
+                        ret += "Error: " + error + "\n";
                     }
                     await Program.Log(ret);
                     return ret;
