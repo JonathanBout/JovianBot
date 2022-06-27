@@ -18,7 +18,7 @@ namespace Jovian
             string[] args = command.Parse();
             if (args.Length >= 1)
             {
-                string ret = "";
+                string ret = "Command: " + Format.Code(command, "bash");
                 var stdOutBuffer = new StringBuilder();
                 var stdErrBuffer = new StringBuilder();
                 Command resultCommand = Cli.Wrap(args[0]);
