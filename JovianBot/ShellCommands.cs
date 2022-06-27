@@ -33,13 +33,25 @@ namespace Jovian
                 string output = stdOutBuffer.ToString();
                 string error = stdErrBuffer.ToString();
 
-                if (!string.IsNullOrEmpty(output))
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+                bool didChange = false;
+                while (sw.ElapsedMilliseconds < 2000 &! didChange)
                 {
-                    ret += "Output:\n"+ Format.Code(output,"bash") + "\n";
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        ret += "Output:\n" + Format.Code(output) + "\n";
+                        didChange = true;
+                    }
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        ret += "Error:\n" + Format.Code(error) + "\n";
+                        didChange = true;
+                    }
                 }
-                if (!string.IsNullOrEmpty(error))
+                if (!didChange)
                 {
-                    ret += "Error:\n" + Format.Code(error, "bash") + "\n";
+                    ret += "No result.";
                 }
                 await Program.Log(ret);
                 return ret;

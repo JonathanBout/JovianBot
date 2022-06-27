@@ -104,7 +104,6 @@ namespace Jovian
             await client.SetGameAsync("Discord.NET");
         }
 #endregion
-
         private static async void CurrentDomain_ProcessExit(object? sender, EventArgs e)
         {
             try
@@ -162,7 +161,7 @@ namespace Jovian
             try
             {
                 //This ensures we don't loop things by responding to ourselves (as the bot)
-                if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
+                if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook || botChannel is null)
                     return;
 
                 if (message.Content.StartsWith(commandChar))
@@ -194,12 +193,18 @@ namespace Jovian
                     {
                         await SendError(new Exception(Format.Bold($"I dont know what you mean by '{command}' 🤷")));
                     }
-                    await message.DeleteAsync();
+                    if (await botChannel.GetMessageAsync(message.Id) is IMessage message1)
+                    {
+                        await message1.DeleteAsync();
+                    }
                 }
                 return;
             }catch (IgnoredException ex)
             {
                 ThrowException(ex);
+            }catch (Exception ex)
+            {
+                await SendError(new Exception("Error whilst evaluating your input: " + Format.Code(ex.Message)));
             }
         }
 
@@ -245,15 +250,15 @@ namespace Jovian
 
         public static async Task<IUserMessage> SendError(Exception error)
         {
-            EmbedBuilder builder = new EmbedBuilder().WithColor(Color.Red);
-            return await SendMessage("Error: " + error.Message, embed: builder.Build());
+            //EmbedBuilder builder = new EmbedBuilder().WithColor(Color.Red);
+            return await SendMessage("Error: " + error.Message/*, embed: builder.Build()*/);
         }
 
         public static async Task<IUserMessage> SendMessage(string message, MessageComponent? components = null, Embed? embed = null)
         {
             if (botChannel is IMessageChannel channel)
             {
-                return await channel.SendMessageAsync(message, components: components, embed: embed);
+                return await channel.SendMessageAsync(new string(message.Take(2000).ToArray()), components: components/*, embed: embed*/);
             }
             throw new NullReferenceException("botchannel was null.");
         }
@@ -459,7 +464,6 @@ namespace Jovian
                 return Format.Bold("Error: " + ex.Message);
             }
         }
-
 
         private static string FormatValue(this decimal value, string letter = "B", decimal divisionStep = 1024.0m, string format = "0.00")
         {
