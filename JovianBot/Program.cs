@@ -10,7 +10,6 @@ using Unosquare.WiringPi;
 
 namespace Jovian
 {
-    // TO COPY TO RPi: run command scp -r C:\Users\jonat\source\repos\JovianBot\JovianBot\bin\Release\net6.0\publish\ pi@raspberryj:/home/pi/Jovian
     public static class Program
     {
         static readonly IConfiguration config;
@@ -26,7 +25,7 @@ namespace Jovian
         static bool isQuickStart = false;
 
         public const char commandChar = '.';
-        #region Constructor and Main
+        #region Initialization
         static Program()
         {
             //setting up the config file
@@ -58,15 +57,17 @@ namespace Jovian
             startTime = DateTime.UtcNow;
             Storage = new DataStorage<string>(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 AppDomain.CurrentDomain.FriendlyName + "_DataStorage"), "MainStorage");
-#if !DEBUG
             try
             {
                 Pi.Init<BootstrapWiringPi>();
-            }catch
+            }catch (Exception ex)
             {
-                LogError(new Exception("Failed to initialize the Pi Object"));
+                LogError(new Exception("Failed to initialize the Pi Object: " + ex.Message));
+                if (Debugger.IsAttached)
+                {
+                    throw;
+                }
             }
-#endif
             Log("Started!");
         }
 
@@ -463,10 +464,6 @@ namespace Jovian
             }
         }
 
-        class JokeObject
-        {
-            public string? Joke { get; set; }
-        }
 
         private static string FormatValue(this decimal value, string letter = "B", decimal divisionStep = 1024.0m, string format = "0.00")
         {
@@ -565,6 +562,10 @@ namespace Jovian
         {
             Storage.Clear();
             await SendMessage("Removed everything in the DataStorage!");
+        }
+        class JokeObject
+        {
+            public string? Joke { get; set; }
         }
     }
 }
