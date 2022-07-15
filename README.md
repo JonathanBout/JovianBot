@@ -1,4 +1,4 @@
-# JovianBot
+# Jovian
 Jovian is a Discord Bot. That's it! 😆<br>
 This bot is currently not used in any Discord server, except my own test server. what it does is reacting to a few commands, like:<br>
 snippet: Sends a code snippet to print 'Hello World!' in the specified language.<br>
