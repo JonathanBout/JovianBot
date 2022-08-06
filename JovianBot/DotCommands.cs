@@ -10,7 +10,7 @@ using System.Xml;
 using RestSharp;
 using System.Data.Common;
 
-namespace Jovian
+namespace DeltaDev.JovianBot
 {
     public static class DotCommands
     {
@@ -18,20 +18,34 @@ namespace Jovian
         //initialize the commands.
         static DotCommands()
         {
-            Commands.Add(new DotCommand(async (x, y) => await Program.SendCodeSnippet(x), "Sends a code snippet to print 'Hello World!' in the specified language.", "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(y, Find(x)))), "Shows help for all or for a specified command.", "help", "all", "commands"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.FindSocketRole("Admin"), "Clears the last 100 messages.", "clearmessages", "clear", "removemessages"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to 10 options.", "poll", "questions", "question"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.Reconnect(), ServerRoles.FindSocketRole("Manager"), "Reconnects the bot.", "reconnect"));
-            Commands.Add(new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.", "joke", "fun", "laugh"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "stats", "serverstats", "botstats"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.WriteDS(x), "Splits the parameters in pairs and writes them to a Database in the form (ID, VALUE)", "write", "store", "save"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.ReadDS(x), "Reads all stuff or a specific key in the DataStorage.", "read", "get", "load"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.ClearDS(), ServerRoles.FindSocketRole("Admin"), "Removes all stuff in the DataStorage.", "removedata", "cleardata", "deletedata"));
-            Commands.Add(new DotCommand(      (x, y) => throw new IgnoredException(x), ServerRoles.FindSocketRole("Admin"), "Throws an Exception, so that the bot crashes.", "error", "bug"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.Reboot(), ServerRoles.FindSocketRole("Admin"), "Reboots the Raspberry PI the bot is running on.", "reboot", "restart"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage($"Saved path is {Program.Storage.StoragePath}"), ServerRoles.FindSocketRole("Manager"), "Sends the current DataStorage saving path.", "savepath", "path"));
-            Commands.Add(new DotCommand(async (x, y) => await Program.SendMessage(await ShellCommands.Execute(x)), ServerRoles.FindSocketRole("Manager"), "Executes a shell command", "shell", "bash"));
+            Commands.AddRange(new DotCommand[]
+            { 
+                new DotCommand(async (x, y) => await Program.SendCodeSnippet(x), "Sends a code snippet to print 'Hello World!' in the specified language.",
+                    "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"),
+                new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(y, Find(x)))), "Shows help for all or for a specified command.",
+                    "help", "all", "commands"),
+                new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.FindSocketRole("Admin"), "Clears the last 100 messages.", "clearmessages",
+                    "clear", "removemessages"),
+                new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to 10 options.", "poll", "questions", "question"),
+                new DotCommand(async (x, y) => await Program.Reconnect(), ServerRoles.FindSocketRole("Manager"), "Reconnects the bot.", "reconnect"),
+                new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.",
+                    "joke", "fun", "laugh"),
+                new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "stats", "serverstats",
+                    "botstats"),
+                new DotCommand(async (x, y) => await Program.WriteDS(x), "Splits the parameters in pairs and writes them to a Database in the form (ID, VALUE)", "write",
+                    "store", "save"),
+                new DotCommand(async (x, y) => await Program.ReadDS(x), "Reads all stuff or a specific key in the DataStorage.", "read", "get", "load"),
+                new DotCommand(async (x, y) => await Program.ClearDS(), ServerRoles.FindSocketRole("Admin"), "Removes all stuff in the DataStorage.", "removedata",
+                    "cleardata", "deletedata"),
+                new DotCommand(      (x, y) => throw new IgnoredException(x), ServerRoles.FindSocketRole("Admin"), "Throws an Exception, so that the bot crashes.",
+                    "error", "bug"),
+                new DotCommand(async (x, y) => await Program.Reboot(), ServerRoles.FindSocketRole("Admin"), "Reboots the Raspberry PI the bot is running on.", "reboot",
+                    "restart"),
+                new DotCommand(async (x, y) => await Program.SendMessage($"Saved path is {Format.Code(Path.GetFullPath(Program.Storage.StoragePath))}"), ServerRoles.FindSocketRole("Manager"),
+                    "Sends the current DataStorage saving path.", "savepath", "path"),
+                new DotCommand(async (x, y) => await Program.SendMessage(await ShellCommands.Execute(x)), ServerRoles.FindSocketRole("Manager"), "Executes a shell command",
+                    "shell", "bash")
+            });
         }
 
         public static string GetHelpString(SocketUser user, DotCommand? command = null)
@@ -45,11 +59,11 @@ namespace Jovian
                         ((SocketGuildUser)user).Roles.Contains(ServerRoles.Find("Admin")))
                     {
                         full += $"\n{Format.Bold("." + dotCommand.FirstKey)}\n{dotCommand.Description}";
-                        
+
                     }
                 }
                 return full;
-}
+            }
             else if (command.MandatoryRole is null || ((SocketGuildUser)user).Roles.Contains(command.MandatoryRole) ||
                     ((SocketGuildUser)user).Roles.Contains(ServerRoles.Find("Admin")))
             {
@@ -77,7 +91,7 @@ namespace Jovian
         {
             Keys = keys;
             Description = description;
-            Function = (Func<string, SocketUser, Task>) function.Clone();
+            Function = (Func<string, SocketUser, Task>)function.Clone();
         }
 
         public DotCommand(Func<string, SocketUser, Task> function, SocketRole? mandatoryRole, string description, params string[] keys)
@@ -85,7 +99,7 @@ namespace Jovian
             Keys = keys;
             Description = description;
             MandatoryRole = mandatoryRole;
-            Function = (Func<string, SocketUser, Task>) function.Clone();
+            Function = (Func<string, SocketUser, Task>)function.Clone();
         }
 
         public void Invoke(string args, SocketUser user)

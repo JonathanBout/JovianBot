@@ -9,7 +9,7 @@ using System.Diagnostics;
 using CliWrap;
 using Discord;
 
-namespace Jovian
+namespace DeltaDev.JovianBot
 {
     public static class ShellCommands
     {
@@ -36,7 +36,7 @@ namespace Jovian
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
                 bool didChange = false;
-                while (sw.ElapsedMilliseconds < 2000 &! didChange)
+                while (sw.ElapsedMilliseconds < 2000 & !didChange)
                 {
                     if (!string.IsNullOrEmpty(output))
                     {

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.IO;
 
-namespace Jovian
+namespace DeltaDev.JovianBot
 {
     public class DataStorage<T> where T : notnull
     {

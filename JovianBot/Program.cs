@@ -8,7 +8,7 @@ using System.Diagnostics;
 using Unosquare.RaspberryIO;
 using Unosquare.WiringPi;
 
-namespace Jovian
+namespace DeltaDev.JovianBot
 {
     public static class Program
     {
@@ -17,9 +17,9 @@ namespace Jovian
         static private bool suspendLog;
         static IMessageChannel? botChannel;
         public static DataStorage<string> Storage { get; }
-        static IGuild Server => client.GetGuild(ulong.Parse(config["ServerGuild"]??"-1"));
+        static IGuild Server => client.GetGuild(ulong.Parse(config["ServerGuild"] ?? "-1"));
         public static IRole[] AllRoles => Server.Roles.ToArray();
-        public static IUser BotOwner => Server.GetUserAsync(ulong.Parse(config["BotOwnerID"]??"-1")).GetAwaiter().GetResult();// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
+        public static IUser BotOwner => Server.GetUserAsync(ulong.Parse(config["BotOwnerID"] ?? "-1")).GetAwaiter().GetResult();// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
 
         static DateTime startTime { get; }
         static bool isQuickStart = false;
@@ -60,7 +60,8 @@ namespace Jovian
             try
             {
                 Pi.Init<BootstrapWiringPi>();
-            }catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 LogError(new Exception("Failed to initialize the Pi Object: " + ex.Message));
             }
@@ -70,13 +71,13 @@ namespace Jovian
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             await client.SetGameAsync($".NET FailFast");
-            await SendError(e.ExceptionObject as Exception?? new Exception("Everything went so badly, even the Exception is not valid!"));
+            await SendError(e.ExceptionObject as Exception ?? new Exception("Everything went so badly, even the Exception is not valid!"));
         }
 
         [STAThread]
         public static async Task Main()
         {
-            
+
             await Log("Created/Loaded DataStorage at " + Storage.StoragePath);
             try
             {
@@ -84,7 +85,8 @@ namespace Jovian
                 await client.StartAsync();
 
                 await Task.Delay(-1);
-            }catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 if (ex is IgnoredException)
                 {
@@ -103,7 +105,7 @@ namespace Jovian
                 await SendMessage("@everyone I'm online! 🥳");
             await client.SetGameAsync("Discord.NET");
         }
-#endregion
+        #endregion
         private static async void CurrentDomain_ProcessExit(object? sender, EventArgs e)
         {
             try
@@ -113,7 +115,8 @@ namespace Jovian
                 await SetChannelReadonly(true);
                 await client.SetStatusAsync(UserStatus.Offline);
                 await client.LogoutAsync();
-            }catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 if (ex is IgnoredException)
                 {
@@ -145,7 +148,7 @@ namespace Jovian
             await Log($"Exit Code: {x.ExitCode}" +
                 $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
                  $"\nError: {(string.IsNullOrEmpty(x.StandardError) ? "(none)" : x.StandardError)}");
-            if (!string.IsNullOrEmpty(x.StandardError)) 
+            if (!string.IsNullOrEmpty(x.StandardError))
                 await SendError(new Exception("Hmmm... that did not work. " + x.StandardError));
         }
 
@@ -182,7 +185,8 @@ namespace Jovian
                                 await dotCommand.InvokeAsync(args, message.Author);
                                 didInvoke = true;
                                 break;
-                            }else
+                            }
+                            else
                             {
                                 await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command.");
                                 didInvoke = true;
@@ -199,10 +203,12 @@ namespace Jovian
                     }
                 }
                 return;
-            }catch (IgnoredException ex)
+            }
+            catch (IgnoredException ex)
             {
                 ThrowException(ex);
-            }catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 await SendError(new Exception("Error whilst evaluating your input: " + Format.Code(ex.Message)));
             }
@@ -322,7 +328,7 @@ namespace Jovian
                 IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
                 var mes = await SendMessage("Please wait while I remove all the messages...");
                 int messagesCount = 0;
-                await foreach(IMessage message in messages.Flatten())
+                await foreach (IMessage message in messages.Flatten())
                 {
                     if (message.Id == mes.Id) { continue; }
                     await message.DeleteAsync();
@@ -343,35 +349,35 @@ namespace Jovian
             string[] args = message.Split(' ').ToArray();
             string s = string.Join(" ", args).ToLower() switch
             {
-                "c"             => Format.Code("#include <stdio.h>\n\nint main()\n{\n\tprintf(\"Hello World!\");\n\treturn 0;\n}", "c"),
-                "c++"           => Format.Code("#include <format>\n\nint main()\n{\n\tstd::print(\"Hello World!\");\n\treturn 0;\n}", "cpp") + "\nor\n" + Format.Code("#include <iostream>\n\nint main()\n{\n\tstd::cout << \"Hello World!\" << std::endl;\n\treturn 0;\n}", "cpp"),
-                "c#"            => Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "cs"),
-                
-                "visual basic"  => Format.Code("Module HelloWorld\n\n\tSub Main()\n\t\tConsole.WriteLine(\"Hello World!\")\n\t\tConsole.ReadKey()\n\n\tEnd Sub\n\nEnd Module", "vb"), 
-                "python"        => Format.Code("print('Hello World!')", "py"),
-                "nohtyp"        => Format.Code(")\"!dlroW olleH\"(tnirp"),
-                
-                "go"            => Format.Code("package main\nimport\"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World!\")\n}", "go"),
-                "rust"          => Format.Code("fn main(){\n\tprintln!(\"Hello World!\");\n}", "rust"),
-                "fortran"       => Format.Code("program HelloWorld\n\tprint *, \"Hello World!\"\nend program HelloWorld", "fortran"),
-                
-                "java"          => Format.Code("class HelloWorld {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println(\"Hello World!\");\n\t}\n}", "java"),
-                "javascript"    => Format.Code("console.log('Hello World!');", "javascript") + "\nor\n" + Format.Code("alert(\"Hello World!\");", "javascript"),
-                
-                "powershell"    => Format.Code("'Hello World!'", "powershell"),
-                "bash"          => Format.Code("echo \"Hello World!\"", "bash"),
-                "perl"          => Format.Code("print \"Hello World!\\n\";", "perl"),
+                "c" => Format.Code("#include <stdio.h>\n\nint main()\n{\n\tprintf(\"Hello World!\");\n\treturn 0;\n}", "c"),
+                "c++" => Format.Code("#include <format>\n\nint main()\n{\n\tstd::print(\"Hello World!\");\n\treturn 0;\n}", "cpp") + "\nor\n" + Format.Code("#include <iostream>\n\nint main()\n{\n\tstd::cout << \"Hello World!\" << std::endl;\n\treturn 0;\n}", "cpp"),
+                "c#" => Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "cs"),
+
+                "visual basic" => Format.Code("Module HelloWorld\n\n\tSub Main()\n\t\tConsole.WriteLine(\"Hello World!\")\n\t\tConsole.ReadKey()\n\n\tEnd Sub\n\nEnd Module", "vb"),
+                "python" => Format.Code("print('Hello World!')", "py"),
+                "nohtyp" => Format.Code(")\"!dlroW olleH\"(tnirp"),
+
+                "go" => Format.Code("package main\nimport\"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World!\")\n}", "go"),
+                "rust" => Format.Code("fn main(){\n\tprintln!(\"Hello World!\");\n}", "rust"),
+                "fortran" => Format.Code("program HelloWorld\n\tprint *, \"Hello World!\"\nend program HelloWorld", "fortran"),
+
+                "java" => Format.Code("class HelloWorld {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println(\"Hello World!\");\n\t}\n}", "java"),
+                "javascript" => Format.Code("console.log('Hello World!');", "javascript") + "\nor\n" + Format.Code("alert(\"Hello World!\");", "javascript"),
+
+                "powershell" => Format.Code("'Hello World!'", "powershell"),
+                "bash" => Format.Code("echo \"Hello World!\"", "bash"),
+                "perl" => Format.Code("print \"Hello World!\\n\";", "perl"),
                 "tcl" or "ruby" => Format.Code("puts \"Hello World!\"", "ruby"),
 
-                "english"       => Format.Code("Hello World!"),
-                "dutch"         => Format.Code("Hallo Wereld!"),
-                "french"        => Format.Code("Bonjour le monde!"),
-                "finnish"       => Format.Code("Hei maailma!"),
-                "hungarian"     => Format.Code("Helló Világ!"),
-                "spanish"       => Format.Code("¡Hola Mundo!"),
-                "german"        => Format.Code("Hallo Welt!"),
-                "greek"         => Format.Code("Γειά σου Κόσμε!"),
-                "chinese"       => Format.Code("你好世界!"),
+                "english" => Format.Code("Hello World!"),
+                "dutch" => Format.Code("Hallo Wereld!"),
+                "french" => Format.Code("Bonjour le monde!"),
+                "finnish" => Format.Code("Hei maailma!"),
+                "hungarian" => Format.Code("Helló Világ!"),
+                "spanish" => Format.Code("¡Hola Mundo!"),
+                "german" => Format.Code("Hallo Welt!"),
+                "greek" => Format.Code("Γειά σου Κόσμε!"),
+                "chinese" => Format.Code("你好世界!"),
                 _ => "",
             };
             if (s != "")
@@ -411,7 +417,8 @@ namespace Jovian
             if (!int.TryParse(args, out int amount))
             {
                 amount = 1;
-            }else
+            }
+            else
             {
                 amount = Math.Max(amount, 1);
             }
@@ -455,7 +462,8 @@ namespace Jovian
                 valPart += $"Offline:           {offline}\n";
                 retVal += Format.Code(valPart);
                 return Format.BlockQuote(retVal);
-            }catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 if (ex is IgnoredException)
                 {
@@ -504,7 +512,8 @@ namespace Jovian
                 if (!Storage.WriteData(new DataChunk<string>(arguments[i], arguments[i + 1])))
                 {
                     data += arguments[i] + ": Key is already in the DataStorage!\n";
-                }else
+                }
+                else
                 {
                     data += arguments[i] + " :\t\t\t";
                     data += arguments[i + 1] + "\n";
@@ -522,7 +531,8 @@ namespace Jovian
                 if (chunks.Count < 1)
                 {
                     msg += "(none)";
-                }else
+                }
+                else
                 {
                     foreach (var item in chunks)
                     {
@@ -530,7 +540,8 @@ namespace Jovian
                     }
                 }
                 await SendMessage(msg);
-            }else
+            }
+            else
             {
                 string[] arguments = args.Parse();
                 string msg = "Data at key";
@@ -539,7 +550,8 @@ namespace Jovian
                     msg += "s " + arguments[0];
                     arguments.Take(arguments.Length - 1).Skip(1).ToList().ForEach(x => msg += ", " + x);
                     msg += " and " + arguments[^1];
-                }else
+                }
+                else
                 {
                     arguments.ToList().ForEach(x => msg += " " + x);
                 }
@@ -549,7 +561,8 @@ namespace Jovian
                     if (arguments.Contains(item.Key))
                     {
                         msg += $"{item.Key}: {item.Value}\n";
-                    }else
+                    }
+                    else
                     {
                         msg += $"{item.Key}: Not Found\n";
                     }
