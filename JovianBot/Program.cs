@@ -383,7 +383,7 @@ namespace DeltaDev.JovianBot
                 await SetChannelReadonly(true);
                 suspendLog = true;
                 IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
-                var mes = await SendMessage("Please wait while I remove all the messages...", null, "", Color.LightOrange);
+                var mes = await SendMessage("Please wait while I remove the last 99 messages...", null, "", Color.LightOrange);
                 int messagesCount = 0;
                 await foreach (IMessage message in messages.Flatten())
                 {
