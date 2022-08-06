@@ -212,7 +212,7 @@ namespace DeltaDev.JovianBot
             }
             catch (Exception ex)
             {
-                await SendError(new Exception("Error whilst evaluating your input: " + Format.Code(ex.Message)));
+                await SendError(new Exception("Error whilst processing your input: " + Format.Code(ex.Message)));
             }
         }
 
