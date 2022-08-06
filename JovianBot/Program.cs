@@ -7,6 +7,8 @@ using Swan;
 using System.Diagnostics;
 using Unosquare.RaspberryIO;
 using Unosquare.WiringPi;
+using System.Text.RegularExpressions;
+using static System.Collections.Specialized.BitVector32;
 
 namespace DeltaDev.JovianBot
 {
@@ -251,22 +253,67 @@ namespace DeltaDev.JovianBot
 
         public static async Task<IUserMessage> SendMessage(string message)
         {
-            return await SendMessage(message, null);
+            return await SendMessage(message, null, "", null);
         }
 
         public static async Task<IUserMessage> SendError(Exception error)
         {
-            //EmbedBuilder builder = new EmbedBuilder().WithColor(Color.Red);
-            return await SendMessage("Error: " + error.Message/*, embed: builder.Build()*/);
+            return await SendMessage(error.Message, "Error", "", color: Color.Red);
         }
 
-        public static async Task<IUserMessage> SendMessage(string message, MessageComponent? components = null, Embed? embed = null)
+        public static async Task<IUserMessage> SendMessage(string message, string? title = null, string? footer = null, Color? color = null)
+        {
+            EmbedFooterBuilder builder = new EmbedFooterBuilder().WithText(footer);
+            return await SendMessage(message, title, builder, color);
+        }
+
+        public static async Task<IUserMessage> SendMessage(string message, string? title = null, EmbedFooterBuilder? footer = null, Color? color = null)
         {
             if (botChannel is IMessageChannel channel)
             {
-                return await channel.SendMessageAsync(new string(message.Take(2000).ToArray()), components: components/*, embed: embed*/);
+                List<Embed> embeds = new List<Embed>();
+                if (message.Length > 4096)
+                {
+                    var matches = Regex.Matches(message, @"(.{1,4096})( |$)");
+                    bool first = true;
+                    foreach(Match match in matches)
+                    {
+                        if (first)
+                        {
+                            embeds.Add(await BuildEmbed(match.Value, title, footer, color));
+                        }else
+                        {
+                            embeds.Add(await BuildEmbed(match.Value, null, footer, color));
+                        }
+                        first = false;
+                    }
+
+                }else
+                {
+                    embeds.Add(await BuildEmbed(message, title, footer, color));
+                }
+
+                return await channel.SendMessageAsync(embeds: embeds.ToArray());
             }
             throw new NullReferenceException("botchannel was null.");
+        }
+
+        static async Task<Embed> BuildEmbed(string message, string? title, EmbedFooterBuilder? footer, Color? color = null)
+        {
+            EmbedBuilder builder = new EmbedBuilder().WithDescription(message);
+            if (!string.IsNullOrEmpty(title))
+            {
+                builder = builder.WithTitle(title);
+            }
+            if (color is Color embedColor)
+            {
+                builder = builder.WithColor(embedColor);
+            }
+            if (footer is EmbedFooterBuilder embedFooter)
+            {
+                builder = builder.WithFooter(footer);
+            }
+            return await Task.FromResult(builder.Build());
         }
 
         public static async Task MakePoll(string args)
@@ -326,7 +373,7 @@ namespace DeltaDev.JovianBot
                 await SetChannelReadonly(true);
                 suspendLog = true;
                 IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
-                var mes = await SendMessage("Please wait while I remove all the messages...");
+                var mes = await SendMessage("Please wait while I remove all the messages...", null, "", Color.LightOrange);
                 int messagesCount = 0;
                 await foreach (IMessage message in messages.Flatten())
                 {
@@ -337,31 +384,115 @@ namespace DeltaDev.JovianBot
                 }
                 suspendLog = false;
                 await Log("\nDone!");
-                await mes.ModifyAsync(x => x.Content = $"Cleared {messagesCount} messages for you!");
-                await SetChannelReadonly(false);
-                await Task.Delay(5000);
+                var doneMes = await SendMessage($"removed {messagesCount} messages.", null, "", Color.Orange);
                 await mes.DeleteAsync();
+                await Task.Delay(3000);
+                await SetChannelReadonly(false);
+                await doneMes.DeleteAsync();
             }
         }
 
-        public static async Task SendCodeSnippet(string message)
+        public static async Task<string?> GetBaconIpsum()
         {
-            string[] args = message.Split(' ').ToArray();
-            string s = string.Join(" ", args).ToLower() switch
+            RestClient client = new ();
+            RestRequest restRequest = new ("https://baconipsum.com/api/?type=meat&format=text");
+            var response = await client.ExecuteAsync(restRequest);
+            return response.Content;
+        }
+
+        public static async Task<string?> GetCodeSnippet(string message)
+        {
+            string? s =  await Task.FromResult(message.ToLower() switch
             {
-                "c" => Format.Code("#include <stdio.h>\n\nint main()\n{\n\tprintf(\"Hello World!\");\n\treturn 0;\n}", "c"),
-                "c++" => Format.Code("#include <format>\n\nint main()\n{\n\tstd::print(\"Hello World!\");\n\treturn 0;\n}", "cpp") + "\nor\n" + Format.Code("#include <iostream>\n\nint main()\n{\n\tstd::cout << \"Hello World!\" << std::endl;\n\treturn 0;\n}", "cpp"),
-                "c#" => Format.Code("namespace HelloWorld\n{\n\tclass HelloWorld\n\t{\n\t\tstatic void Main(string[] args)\n\t\t{\n\t\t\tSystem.Console.WriteLine(\"Hello World!\");\n\t\t}\n\t}\n}", "cs"),
+                "assembly" => Format.Code(
+@"SECTION.data
+Msg: db ""Hello world!"", 10
+Len: equ $-Msg
 
-                "visual basic" => Format.Code("Module HelloWorld\n\n\tSub Main()\n\t\tConsole.WriteLine(\"Hello World!\")\n\t\tConsole.ReadKey()\n\n\tEnd Sub\n\nEnd Module", "vb"),
+global _start
+_start:
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, Msg
+    mov edx, Len
+    int 80H
+
+    mov eax, 1
+    mov ebx, 0
+    int 80H
+"),
+
+                "c" => Format.Code(
+@"#include <stdio.h>
+
+int main()
+{
+	printf(""Hello World!"");
+	return 0;
+}", "c"),
+                "c++" or "cpp" => Format.Code(
+@"#include <format>
+
+int main()
+{
+	std::print(""Hello World!"");
+	return 0;
+}", "cpp") 
+                + "\nor\n" + Format.Code(
+@"#include <iostream>
+
+int main()
+{
+	std::cout << ""Hello World!"" << std::endl;
+	return 0;
+}", "cpp"),
+                "c#" or "csharp" => Format.Code(
+@"namespace HelloWorld
+{
+	class HelloWorld
+	{
+		static void Main(string[] args)
+		{
+			System.Console.WriteLine(""Hello World!"");
+		}
+	}
+}", "cs"),
+
+                "visual basic" => Format.Code(
+@"Module HelloWorld
+
+	Sub Main()
+		Console.WriteLine(""Hello World!"")
+		Console.ReadKey()
+
+	End Sub
+
+End Module", "vb"),
                 "python" => Format.Code("print('Hello World!')", "py"),
-                "nohtyp" => Format.Code(")\"!dlroW olleH\"(tnirp"),
+                "nohtyp" => Format.Code(")\"!dlroW olleH\"(tnirp", "py"),
 
-                "go" => Format.Code("package main\nimport\"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello World!\")\n}", "go"),
-                "rust" => Format.Code("fn main(){\n\tprintln!(\"Hello World!\");\n}", "rust"),
-                "fortran" => Format.Code("program HelloWorld\n\tprint *, \"Hello World!\"\nend program HelloWorld", "fortran"),
+                "go" => Format.Code(
+@"package main
+import""fmt""
 
-                "java" => Format.Code("class HelloWorld {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println(\"Hello World!\");\n\t}\n}", "java"),
+func main() {
+	fmt.Println(""Hello World!"")
+}", "go"),
+                "rust" => Format.Code(
+@"fn main(){
+	println!(""Hello World!"");
+}", "rust"),
+                "fortran" => Format.Code(
+@"program HelloWorld
+	print *, ""Hello World!""
+end program HelloWorld", "fortran"),
+
+                "java" => Format.Code(
+@"class HelloWorld {
+	public static void main(String[] args) {
+		System.out.println(""Hello World!"");
+	}
+}", "java"),
                 "javascript" => Format.Code("console.log('Hello World!');", "javascript") + "\nor\n" + Format.Code("alert(\"Hello World!\");", "javascript"),
 
                 "powershell" => Format.Code("'Hello World!'", "powershell"),
@@ -378,12 +509,10 @@ namespace DeltaDev.JovianBot
                 "german" => Format.Code("Hallo Welt!"),
                 "greek" => Format.Code("Γειά σου Κόσμε!"),
                 "chinese" => Format.Code("你好世界!"),
-                _ => "",
-            };
-            if (s != "")
-                await SendMessage($"Hello World code snippet ({string.Join(" ", args).ToUpper()}):\n{s}");
-            else
-                await SendError(new Exception("I don't know that language (yet)"));
+                _ => null,
+            });
+
+            return s is null? null : $"**'Hello World!' code snippet in {message.ToUpper()}:**\n" + s;
         }
 
         public static string[] Parse(this string str)

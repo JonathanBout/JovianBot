@@ -19,8 +19,11 @@ namespace DeltaDev.JovianBot
         static DotCommands()
         {
             Commands.AddRange(new DotCommand[]
-            { 
-                new DotCommand(async (x, y) => await Program.SendCodeSnippet(x), "Sends a code snippet to print 'Hello World!' in the specified language.",
+            {
+                new DotCommand(async (x, y) => {string? s = await Program.GetCodeSnippet(x);
+                    if (!string.IsNullOrEmpty(s)) {await Program.SendMessage(s, footer: "", color: Color.Purple); }
+                    else {await Program.SendError(new Exception("I don't know that language (yet)")); } },
+                    "Sends a code snippet to print 'Hello World!' in the specified language.",
                     "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"),
                 new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(y, Find(x)))), "Shows help for all or for a specified command.",
                     "help", "all", "commands"),
@@ -28,7 +31,7 @@ namespace DeltaDev.JovianBot
                     "clear", "removemessages"),
                 new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to 10 options.", "poll", "questions", "question"),
                 new DotCommand(async (x, y) => await Program.Reconnect(), ServerRoles.FindSocketRole("Manager"), "Reconnects the bot.", "reconnect"),
-                new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x))).AddReaction(":rofl:"), "Throws a random joke.",
+                new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x), footer: "From https://icanhazdadjoke.com/", color: Color.Gold)).AddReaction(":rofl:"), "Throws a random joke.",
                     "joke", "fun", "laugh"),
                 new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "stats", "serverstats",
                     "botstats"),
@@ -43,9 +46,12 @@ namespace DeltaDev.JovianBot
                     "restart"),
                 new DotCommand(async (x, y) => await Program.SendMessage($"Saved path is {Format.Code(Path.GetFullPath(Program.Storage.StoragePath))}"), ServerRoles.FindSocketRole("Manager"),
                     "Sends the current DataStorage saving path.", "savepath", "path"),
-                new DotCommand(async (x, y) => await Program.SendMessage(await ShellCommands.Execute(x)), ServerRoles.FindSocketRole("Manager"), "Executes a shell command",
-                    "shell", "bash")
-            });
+                new DotCommand(async (x, y) => await Program.SendMessage(await ShellCommands.Execute(x)), ServerRoles.FindSocketRole("Manager"), "Executes a shell command.",
+                    "shell", "bash"),
+                new DotCommand(async (x, y) => {string? result = await Program.GetBaconIpsum();
+                    if (!string.IsNullOrEmpty(result)) { await Program.SendMessage(result, "Bacon Ipsum", "From https://baconipsum.com/", color: Color.Green);}
+                    else { await Program.SendError(new Exception("The result was empty.")); } }, "Returns some Bacon Ipsum from [Bacon Ipsum](https://baconipsum.com/).", "bacon", "lorem", "text")
+            }) ;
         }
 
         public static string GetHelpString(SocketUser user, DotCommand? command = null)
