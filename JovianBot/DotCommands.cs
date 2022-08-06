@@ -48,7 +48,7 @@ namespace DeltaDev.JovianBot
                     "Sends the current DataStorage saving path.", "savepath", "path"),
                 new DotCommand(async (x, y) => await Program.SendMessage(await ShellCommands.Execute(x)), ServerRoles.FindSocketRole("Manager"), "Executes a shell command.",
                     "shell", "bash"),
-                new DotCommand(async (x, y) => {string? result = await Program.GetBaconIpsum();
+                new DotCommand(async (x, y) => {string? result = await Program.GetBaconIpsum(x);
                     if (!string.IsNullOrEmpty(result)) { await Program.SendMessage(result, "Bacon Ipsum", "From https://baconipsum.com/", color: Color.Green);}
                     else { await Program.SendError(new Exception("The result was empty.")); } }, "Returns some Bacon Ipsum from [Bacon Ipsum](https://baconipsum.com/).", "bacon", "lorem", "text")
             }) ;

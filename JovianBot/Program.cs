@@ -163,12 +163,10 @@ namespace DeltaDev.JovianBot
 
         private static async Task MessageReceivedAsync(SocketMessage message)
         {
+            if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook || botChannel is null)
+                return;
             try
-            {
-                //This ensures we don't loop things by responding to ourselves (as the bot)
-                if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook || botChannel is null)
-                    return;
-
+            { 
                 if (message.Content.StartsWith(commandChar))
                 {
                     string commandWithArgs = message.Content.TrimStart(commandChar, ' ');
@@ -212,6 +210,10 @@ namespace DeltaDev.JovianBot
             }
             catch (Exception ex)
             {
+                if (await botChannel.GetMessageAsync(message.Id) is IMessage message1)
+                {
+                    await message1.DeleteAsync();
+                }
                 await SendError(new Exception("Error whilst processing your input: " + Format.Code(ex.Message)));
             }
         }
@@ -274,7 +276,7 @@ namespace DeltaDev.JovianBot
                 List<Embed> embeds = new List<Embed>();
                 if (message.Length > 4096)
                 {
-                    var matches = Regex.Matches(message, @"(.{1,4096})( |$)");
+                    var matches = Regex.Matches(message, @"(.{1,4096}\b|.{4096})", RegexOptions.Singleline);
                     bool first = true;
                     foreach(Match match in matches)
                     {
@@ -292,8 +294,16 @@ namespace DeltaDev.JovianBot
                 {
                     embeds.Add(await BuildEmbed(message, title, footer, color));
                 }
-
-                return await channel.SendMessageAsync(embeds: embeds.ToArray());
+                IUserMessage? msg = null;
+                foreach(var embed in embeds)
+                {
+                    msg = await channel.SendMessageAsync(embed: embed);
+                }
+                if (msg is null)
+                {
+                    throw new Exception("A unknown problem appeared while the bot tried sending a message.");
+                }
+                return msg;
             }
             throw new NullReferenceException("botchannel was null.");
         }
@@ -392,10 +402,15 @@ namespace DeltaDev.JovianBot
             }
         }
 
-        public static async Task<string?> GetBaconIpsum()
+        public static async Task<string?> GetBaconIpsum(string args)
         {
             RestClient client = new ();
             RestRequest restRequest = new ("https://baconipsum.com/api/?type=meat&format=text");
+            string[] arguments = args.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (arguments.Length > 0)
+            {
+                restRequest.AddQueryParameter("paras", arguments[0]);
+            }
             var response = await client.ExecuteAsync(restRequest);
             return response.Content;
         }
