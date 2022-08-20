@@ -25,28 +25,28 @@ namespace DeltaDev.JovianBot
                     else {await Program.SendError(new Exception("I don't know that language (yet)")); } },
                     "Sends a code snippet to print 'Hello World!' in the specified language.",
                     "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"),
-                new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(y, Find(x)))), "Shows help for all or for a specified command.",
+                new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(y.Author, Find(x)))), "Shows help for all or for a specified command.",
                     "help", "all", "commands"),
-                new DotCommand(async (x, y) => await Program.RemoveMessages(), ServerRoles.FindSocketRole("Admin"), "Clears the last 100 messages.", "clearmessages",
+                new DotCommand(async (x, y) => await Program.RemoveMessages(), "Clears the last 100 messages.", "clearmessages",
                     "clear", "removemessages"),
                 new DotCommand(async (x, y) => await Program.MakePoll(x), "Makes a poll with up to 10 options.", "poll", "questions", "question"),
-                new DotCommand(async (x, y) => await Program.Reconnect(), ServerRoles.FindSocketRole("Manager"), "Reconnects the bot.", "reconnect"),
+                new DotCommand(async (x, y) => await Program.Reconnect(), "Reconnects the bot.", "reconnect"),
                 new DotCommand(async (x, y) => await (await Program.SendMessage(await Program.RequestRandomJoke(x), footer: "From https://icanhazdadjoke.com/", color: Color.Gold)).AddReaction(":rofl:"), "Throws a random joke.",
                     "joke", "fun", "laugh"),
-                new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetBotStats()), "Shows some statistics about this bot.", "stats", "serverstats",
+                new DotCommand(async (x, y) => await Program.SendMessage(await Program.GetStats(y.GetServer())), "Shows some statistics about this bot.", "stats", "serverstats",
                     "botstats"),
                 new DotCommand(async (x, y) => await Program.WriteDS(x), "Splits the parameters in pairs and writes them to a Database in the form (ID, VALUE)", "write",
                     "store", "save"),
                 new DotCommand(async (x, y) => await Program.ReadDS(x), "Reads all stuff or a specific key in the DataStorage.", "read", "get", "load"),
-                new DotCommand(async (x, y) => await Program.ClearDS(), ServerRoles.FindSocketRole("Admin"), "Removes all stuff in the DataStorage.", "removedata",
+                new DotCommand(async (x, y) => await Program.ClearDS(), "Removes all stuff in the DataStorage.", "removedata",
                     "cleardata", "deletedata"),
-                new DotCommand(      (x, y) => throw new IgnoredException(x), ServerRoles.FindSocketRole("Admin"), "Throws an Exception, so that the bot crashes.",
+                new DotCommand(      (x, y) => throw new IgnoredException(x), "Throws an Exception, so that the bot crashes.",
                     "error", "bug"),
-                new DotCommand(async (x, y) => await Program.Reboot(), ServerRoles.FindSocketRole("Admin"), "Reboots the Raspberry PI the bot is running on.", "reboot",
+                new DotCommand(async (x, y) => await Program.Reboot(), "Reboots the Raspberry PI the bot is running on.", "reboot",
                     "restart"),
-                new DotCommand(async (x, y) => await Program.SendMessage($"Saved path is {Format.Code(Path.GetFullPath(Program.Storage.StoragePath))}"), ServerRoles.FindSocketRole("Manager"),
+                new DotCommand(async (x, y) => await Program.SendMessage($"Saved path is {Format.Code(Path.GetFullPath(Program.Storage.StoragePath))}"),
                     "Sends the current DataStorage saving path.", "savepath", "path"),
-                new DotCommand(async (x, y) => await Program.SendMessage(await ShellCommands.Execute(x)), ServerRoles.FindSocketRole("Manager"), "Executes a shell command.",
+                new DotCommand(async (x, y) => await Program.SendMessage(await ShellCommands.Execute(x)), "Executes a shell command.",
                     "shell", "bash"),
                 new DotCommand(async (x, y) => {string? result = await Program.GetBaconIpsum(x);
                     if (!string.IsNullOrEmpty(result)) { await Program.SendMessage(result, "Bacon Ipsum", "From https://baconipsum.com/", color: Color.Green);}
@@ -61,22 +61,11 @@ namespace DeltaDev.JovianBot
                 string full = Format.Bold("All Commands:");
                 foreach (DotCommand dotCommand in Commands)
                 {
-                    if (dotCommand.MandatoryRole is null || ((SocketGuildUser)user).Roles.Contains(dotCommand.MandatoryRole) ||
-                        ((SocketGuildUser)user).Roles.Contains(ServerRoles.Find("Admin")))
-                    {
-                        full += $"\n{Format.Bold("." + dotCommand.FirstKey)}\n{dotCommand.Description}";
-
-                    }
+                    full += $"\n{Format.Bold("." + dotCommand.FirstKey)}\n{dotCommand.Description}";
                 }
                 return full;
-            }
-            else if (command.MandatoryRole is null || ((SocketGuildUser)user).Roles.Contains(command.MandatoryRole) ||
-                    ((SocketGuildUser)user).Roles.Contains(ServerRoles.Find("Admin")))
-            {
-                return $"{command.FirstKey}: {command.Description}";
-            }
-            else
-                return $"You are not allowed to use that command, but i'll say what it does:\n{command.FirstKey}: {command.Description}";
+            } 
+            return $"{command.FirstKey}: {command.Description}";
         }
 
         public static DotCommand? Find(string key)
@@ -88,34 +77,25 @@ namespace DeltaDev.JovianBot
     public class DotCommand
     {
         string[] Keys { get; }
-        Func<string, SocketUser, Task> Function { get; }
+        Func<string, SocketMessage, Task> Function { get; }
         public string Description { get; }
-        public SocketRole? MandatoryRole = null;
 
         public string FirstKey => Keys[0];
-        public DotCommand(Func<string, SocketUser, Task> function, string description, params string[] keys)
+        public DotCommand(Func<string, SocketMessage, Task> function, string description, params string[] keys)
         {
             Keys = keys;
             Description = description;
-            Function = (Func<string, SocketUser, Task>)function.Clone();
+            Function = function;
         }
 
-        public DotCommand(Func<string, SocketUser, Task> function, SocketRole? mandatoryRole, string description, params string[] keys)
+        public void Invoke(string args, SocketMessage message)
         {
-            Keys = keys;
-            Description = description;
-            MandatoryRole = mandatoryRole;
-            Function = (Func<string, SocketUser, Task>)function.Clone();
+            Function.Invoke(args, message).Wait();
         }
 
-        public void Invoke(string args, SocketUser user)
+        public async Task InvokeAsync(string args, SocketMessage message)
         {
-            Function.Invoke(args, user).Wait();
-        }
-
-        public async Task InvokeAsync(string args, SocketUser user)
-        {
-            await Function.Invoke(args, user);
+            await Function.Invoke(args, message);
         }
 
         public bool ContainsKey(string key)
@@ -158,19 +138,6 @@ namespace DeltaDev.JovianBot
             return base.GetHashCode();
         }
         #endregion
-    }
-
-    public static class ServerRoles
-    {
-        public static IRole? Find(string roleName)
-        {
-            return Program.AllRoles.First(x => x?.Name.ToLower() == roleName.ToLower());
-        }
-
-        public static SocketRole? FindSocketRole(string roleName)
-        {
-            return (SocketRole?)Find(roleName);
-        }
     }
 
     public class IgnoredException : Exception

@@ -19,9 +19,10 @@ namespace DeltaDev.JovianBot
         static private bool suspendLog;
         static IMessageChannel? botChannel;
         public static DataStorage<string> Storage { get; }
-        static IGuild Server => client.GetGuild(ulong.Parse(config["ServerGuild"] ?? "-1"));
-        public static IRole[] AllRoles => Server.Roles.ToArray();
-        public static IUser BotOwner => Server.GetUserAsync(ulong.Parse(config["BotOwnerID"] ?? "-1")).GetAwaiter().GetResult();// GetUsersAsync().GetAwaiter().GetResult().First(x => x.DisplayName == "Dutch Space");
+        public static IRole[] GetRoles(SocketGuild server)
+        {
+            return server.Roles.ToArray();
+        }
 
         static DateTime startTime { get; }
         static bool isQuickStart = false;
@@ -102,7 +103,6 @@ namespace DeltaDev.JovianBot
         {
             botChannel = await client.GetChannelAsync(ulong.Parse(config["BotChannelGuild"] ?? "-1")) as IMessageChannel;
             await Task.Delay(500);
-            await SetChannelReadonly(false);
             if (!isQuickStart)
                 await SendMessage("@everyone I'm online! 🥳");
             await client.SetGameAsync("Discord.NET");
@@ -114,7 +114,6 @@ namespace DeltaDev.JovianBot
             {
                 await client.SetGameAsync("Sleep");
                 await SendMessage($"I'm going offline👋");
-                await SetChannelReadonly(true);
                 await client.SetStatusAsync(UserStatus.Offline);
                 await client.LogoutAsync();
             }
@@ -131,13 +130,11 @@ namespace DeltaDev.JovianBot
         public static async Task Reconnect()
         {
             await SendMessage("Gimme a sec...");
-            await SetChannelReadonly(true);
             await client.StopAsync();
             await client.LogoutAsync();
             await Task.Delay(500);
             await client.LoginAsync(TokenType.Bot, config["Token"]);
             await client.StartAsync();
-            await SetChannelReadonly(false);
             await SendMessage("Done!");
         }
 
@@ -145,20 +142,12 @@ namespace DeltaDev.JovianBot
         {
             await client.SetGameAsync("Reboot");
             await SendMessage("Wait a minute...");
-            await SetChannelReadonly(true);
             var x = await Pi.RestartAsync();
             await Log($"Exit Code: {x.ExitCode}" +
                 $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
                  $"\nError: {(string.IsNullOrEmpty(x.StandardError) ? "(none)" : x.StandardError)}");
             if (!string.IsNullOrEmpty(x.StandardError))
                 await SendError(new Exception("Hmmm... that did not work. " + x.StandardError));
-        }
-
-        public static async Task SetChannelReadonly(bool isReadonly)
-        {
-            if (botChannel is null) return;
-            var perms = new OverwritePermissions(sendMessages: isReadonly ? PermValue.Deny : PermValue.Allow);
-            await ((IGuildChannel)botChannel).AddPermissionOverwriteAsync(ServerRoles.Find("@everyone"), perms);
         }
 
         private static async Task MessageReceivedAsync(SocketMessage message)
@@ -179,10 +168,10 @@ namespace DeltaDev.JovianBot
                         if (dotCommand == command)
                         {
                             var userRoles = ((SocketGuildUser)message.Author).Roles;
-                            if (dotCommand.MandatoryRole == null || userRoles.Contains(dotCommand.MandatoryRole) || userRoles.Any(x => x.Name == "Admin"))
+                            if (true) // just true for now, may want to implement a Roles system in the future
                             {
                                 await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."));
-                                await dotCommand.InvokeAsync(args, message.Author);
+                                await dotCommand.InvokeAsync(args, message);
                                 didInvoke = true;
                                 break;
                             }
@@ -380,7 +369,6 @@ namespace DeltaDev.JovianBot
             if (botChannel is IMessageChannel channel)
             {
                 await Log("Removing all messages. this will take some time.", false);
-                await SetChannelReadonly(true);
                 suspendLog = true;
                 IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
                 var mes = await SendMessage("Please wait while I remove the last 99 messages...", null, "", Color.LightOrange);
@@ -397,7 +385,6 @@ namespace DeltaDev.JovianBot
                 var doneMes = await SendMessage($"removed {messagesCount} messages.", null, "", Color.Orange);
                 await mes.DeleteAsync();
                 await Task.Delay(3000);
-                await SetChannelReadonly(false);
                 await doneMes.DeleteAsync();
             }
         }
@@ -581,12 +568,12 @@ end program HelloWorld", "fortran"),
             return joke;
         }
 
-        public static async Task<string> GetBotStats()
+        public static async Task<string> GetStats(SocketGuild server)
         {
             string retVal = $"{Format.Bold($"Bot Stats{(Debugger.IsAttached ? " [DEBUG MODE]" : "")}:")}\n";
             try
             {
-                IGuildUser[] users = (await Server.GetUsersAsync()).ToArray();
+                IGuildUser[] users = (await server.GetUsersAsync().FlattenAsync()).ToArray();
                 int totalUsers = users.Length;
                 int online = users.Where(x => x.Status != UserStatus.Offline).Count();
                 int offline = totalUsers - online;
