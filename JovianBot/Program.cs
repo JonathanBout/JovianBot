@@ -17,7 +17,6 @@ namespace DeltaDev.JovianBot
         static readonly IConfiguration config;
         static public DiscordSocketClient client;
         static private bool suspendLog;
-        static IMessageChannel? botChannel;
         public static DataStorage<string> Storage { get; }
         public static IRole[] GetRoles(SocketGuild server)
         {
@@ -25,7 +24,6 @@ namespace DeltaDev.JovianBot
         }
 
         static DateTime startTime { get; }
-        static bool isQuickStart = false;
 
         public const char commandChar = '.';
         #region Initialization
@@ -43,7 +41,6 @@ namespace DeltaDev.JovianBot
                 {
                     Log("The bot is running already!");
                     theprocess.Kill();
-                    isQuickStart = true;
                 }
             }
             //setting up the Discord Client and some events
@@ -101,10 +98,7 @@ namespace DeltaDev.JovianBot
 
         private static async Task Client_Ready()
         {
-            botChannel = await client.GetChannelAsync(ulong.Parse(config["BotChannelGuild"] ?? "-1")) as IMessageChannel;
-            await Task.Delay(500);
-            if (!isQuickStart)
-                await SendMessage("@everyone I'm online! 🥳");
+            await SendMessage("@everyone I'm online! 🥳", (IMessageChannel)client.GetChannel(ulong.Parse(config["botchannel"])));
             await client.SetGameAsync("Discord.NET");
         }
         #endregion
@@ -113,7 +107,7 @@ namespace DeltaDev.JovianBot
             try
             {
                 await client.SetGameAsync("Sleep");
-                await SendMessage($"I'm going offline👋");
+                await SendMessage($"I'm going offline👋", context);
                 await client.SetStatusAsync(UserStatus.Offline);
                 await client.LogoutAsync();
             }
@@ -127,32 +121,32 @@ namespace DeltaDev.JovianBot
             }
         }
 
-        public static async Task Reconnect()
+        public static async Task Reconnect(IMessageChannel channel)
         {
-            await SendMessage("Gimme a sec...");
+            await SendMessage("Gimme a sec...", channel);
             await client.StopAsync();
             await client.LogoutAsync();
             await Task.Delay(500);
             await client.LoginAsync(TokenType.Bot, config["Token"]);
             await client.StartAsync();
-            await SendMessage("Done!");
+            await SendMessage("Done!", channel);
         }
 
-        public static async Task Reboot()
+        public static async Task Reboot(IMessageChannel channel)
         {
             await client.SetGameAsync("Reboot");
-            await SendMessage("Wait a minute...");
+            await SendMessage("Wait a minute...", channel);
             var x = await Pi.RestartAsync();
             await Log($"Exit Code: {x.ExitCode}" +
                 $"\nOutput: {(string.IsNullOrEmpty(x.StandardOutput) ? "(none)" : x.StandardOutput)}" +
                  $"\nError: {(string.IsNullOrEmpty(x.StandardError) ? "(none)" : x.StandardError)}");
             if (!string.IsNullOrEmpty(x.StandardError))
-                await SendError(new Exception("Hmmm... that did not work. " + x.StandardError));
+                await SendError(new Exception("Hmmm... that did not work. " + x.StandardError), channel);
         }
 
         private static async Task MessageReceivedAsync(SocketMessage message)
         {
-            if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook || botChannel is null)
+            if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
                 return;
             try
             { 
@@ -170,9 +164,8 @@ namespace DeltaDev.JovianBot
                             var userRoles = ((SocketGuildUser)message.Author).Roles;
                             if (true) // just true for now, may want to implement a Roles system in the future
                             {
-                                await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."));
+                                await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."), message.Channel);
                                 await dotCommand.InvokeAsync(args, message);
-                                didInvoke = true;
                                 break;
                             }
                             else
@@ -184,9 +177,9 @@ namespace DeltaDev.JovianBot
                     }
                     if (!didInvoke)
                     {
-                        await SendError(new Exception(Format.Bold($"I dont know what you mean by '{command}' 🤷")));
+                        await SendError(new Exception(Format.Bold($"I dont know what you mean by '{command}' 🤷")), message.Channel);
                     }
-                    if (await botChannel.GetMessageAsync(message.Id) is IMessage message1)
+                    if (await message.Channel.GetMessageAsync(message.Id) is IMessage message1)
                     {
                         await message1.DeleteAsync();
                     }
@@ -199,11 +192,11 @@ namespace DeltaDev.JovianBot
             }
             catch (Exception ex)
             {
-                if (await botChannel.GetMessageAsync(message.Id) is IMessage message1)
+                if (await message.Channel.GetMessageAsync(message.Id) is IMessage message1)
                 {
                     await message1.DeleteAsync();
                 }
-                await SendError(new Exception("Error whilst processing your input: " + Format.Code(ex.Message)));
+                await SendError(new Exception("Error whilst processing your input: " + Format.Code(ex.Message)), message.Channel);
             }
         }
 
@@ -242,26 +235,24 @@ namespace DeltaDev.JovianBot
 #endif
         }
 
-        public static async Task<IUserMessage> SendMessage(string message)
+        public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel)
         {
-            return await SendMessage(message, null, "", null);
+            return await SendMessage(message, channel, null, "", null);
         }
 
-        public static async Task<IUserMessage> SendError(Exception error)
+        public static async Task<IUserMessage> SendError(Exception error, IMessageChannel channel)
         {
-            return await SendMessage(error.Message, "Error", "", color: Color.Red);
+            return await SendMessage(error.Message, channel, "Error", "", color: Color.Red);
         }
 
-        public static async Task<IUserMessage> SendMessage(string message, string? title = null, string? footer = null, Color? color = null)
+        public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, string? title = null, string? footer = null, Color? color = null)
         {
             EmbedFooterBuilder builder = new EmbedFooterBuilder().WithText(footer);
-            return await SendMessage(message, title, builder, color);
+            return await SendMessage(message, channel, title, builder, color);
         }
 
-        public static async Task<IUserMessage> SendMessage(string message, string? title = null, EmbedFooterBuilder? footer = null, Color? color = null)
+        public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, string? title = null, EmbedFooterBuilder? footer = null, Color? color = null)
         {
-            if (botChannel is IMessageChannel channel)
-            {
                 List<Embed> embeds = new List<Embed>();
                 if (message.Length > 4096)
                 {
@@ -293,8 +284,6 @@ namespace DeltaDev.JovianBot
                     throw new Exception("A unknown problem appeared while the bot tried sending a message.");
                 }
                 return msg;
-            }
-            throw new NullReferenceException("botchannel was null.");
         }
 
         static async Task<Embed> BuildEmbed(string message, string? title, EmbedFooterBuilder? footer, Color? color = null)
@@ -315,11 +304,9 @@ namespace DeltaDev.JovianBot
             return await Task.FromResult(builder.Build());
         }
 
-        public static async Task MakePoll(string args)
+        public static async Task MakePoll(string args, IMessageChannel channel)
         {
-            if (args.Parse().Length <= 2) { await SendError(new Exception("Too few arguments!")); return; }
-            if (botChannel is not null)
-            {
+            if (args.Parse().Length <= 2) { await SendError(new Exception("Too few arguments!"), channel); return; }
                 string[] argsArray = args.Parse();
                 string pollText = argsArray[0];
                 for (int i = 0; i < argsArray.Length - 1 && i < 10; i++)
@@ -328,7 +315,7 @@ namespace DeltaDev.JovianBot
                     string emoji = $"{i + 1}⃣";
                     pollText += $"\n{emoji} => {arg}";
                 }
-                IUserMessage? msg = await SendMessage(pollText);
+                IUserMessage? msg = await SendMessage(pollText, channel);
                 if (msg is null)
                 {
                     return;
@@ -353,7 +340,6 @@ namespace DeltaDev.JovianBot
 
                     await msg.AddReaction(emote);
                 }
-            }
         }
 
         public static async Task AddReaction(this IUserMessage msg, string emote)
@@ -364,29 +350,26 @@ namespace DeltaDev.JovianBot
             }
         }
 
-        public static async Task RemoveMessages()
+        public static async Task RemoveMessages(IMessageChannel channel)
         {
-            if (botChannel is IMessageChannel channel)
+            await Log("Removing all messages. this will take some time.", false);
+            suspendLog = true;
+            IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
+            var mes = await SendMessage("Please wait while I remove the last 99 messages...", channel, null, "", Color.LightOrange);
+            int messagesCount = 0;
+            await foreach (IMessage message in messages.Flatten())
             {
-                await Log("Removing all messages. this will take some time.", false);
-                suspendLog = true;
-                IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
-                var mes = await SendMessage("Please wait while I remove the last 99 messages...", null, "", Color.LightOrange);
-                int messagesCount = 0;
-                await foreach (IMessage message in messages.Flatten())
-                {
-                    if (message.Id == mes.Id) { continue; }
-                    await message.DeleteAsync();
-                    _ = Log(".", false);
-                    messagesCount++;
-                }
-                suspendLog = false;
-                await Log("\nDone!");
-                var doneMes = await SendMessage($"removed {messagesCount} messages.", null, "", Color.Orange);
-                await mes.DeleteAsync();
-                await Task.Delay(3000);
-                await doneMes.DeleteAsync();
+                if (message.Id == mes.Id) { continue; }
+                await message.DeleteAsync();
+                _ = Log(".", false);
+                messagesCount++;
             }
+            suspendLog = false;
+            await Log("\nDone!");
+            var doneMes = await SendMessage($"removed {messagesCount} messages.", channel, null, "", Color.Orange);
+            await mes.DeleteAsync();
+            await Task.Delay(3000);
+            await doneMes.DeleteAsync();
         }
 
         public static async Task<string?> GetBaconIpsum(string args)
@@ -632,10 +615,10 @@ end program HelloWorld", "fortran"),
             return res;
         }
 
-        public static async Task WriteDS(string args)
+        public static async Task WriteDS(string args, IMessageChannel channel)
         {
             string[] arguments = args.Parse();
-            if (arguments.Length < 2) { await SendError(new Exception("Can't create pairs of (ID, VALUE) of less than 2 arguments.")); return; }
+            if (arguments.Length < 2) { await SendError(new Exception("Can't create pairs of (ID, VALUE) of less than 2 arguments."), channel); return; }
             string data = "";
             for (int i = 0; i < arguments.Length - 1; i += 2)
             {
@@ -650,10 +633,10 @@ end program HelloWorld", "fortran"),
                     data += arguments[i + 1] + "\n";
                 }
             }
-            await SendMessage("Succesfully written to data storage:\n" + data);
+            await SendMessage("Succesfully written to data storage:\n" + data, channel);
         }
 
-        public static async Task ReadDS(string args)
+        public static async Task ReadDS(string args, IMessageChannel channel)
         {
             List<DataChunk<string>> chunks = Storage.currentStorage;
             if (string.IsNullOrEmpty(args))
@@ -670,7 +653,7 @@ end program HelloWorld", "fortran"),
                         msg += $"{item.Key}: {item.Value}\n";
                     }
                 }
-                await SendMessage(msg);
+                await SendMessage(msg, channel);
             }
             else
             {
@@ -698,14 +681,14 @@ end program HelloWorld", "fortran"),
                         msg += $"{item.Key}: Not Found\n";
                     }
                 }
-                await SendMessage(msg);
+                await SendMessage(msg, channel);
             }
         }
 
-        public static async Task ClearDS()
+        public static async Task ClearDS(IMessageChannel channel)
         {
             Storage.Clear();
-            await SendMessage("Removed everything in the DataStorage!");
+            await SendMessage("Removed everything in the DataStorage!", channel);
         }
         class JokeObject
         {
