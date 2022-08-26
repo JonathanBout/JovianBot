@@ -15,15 +15,12 @@ namespace DeltaDev.JovianBot
     public static class Program
     {
         static readonly IConfiguration config;
-        static public DiscordSocketClient client;
+        static DiscordSocketClient client;
         static private bool suspendLog;
         public static DataStorage<string> Storage { get; }
-        public static IRole[] GetRoles(SocketGuild server)
-        {
-            return server.Roles.ToArray();
-        }
-
-        static DateTime startTime { get; }
+        static IUser BotOwner => client.GetUser(BotOwnerID);
+        static ulong BotOwnerID => ulong.Parse(config["BotOwnerID"]??"0");
+        static DateTime StartTime { get; }
 
         public const char commandChar = '.';
         #region Initialization
@@ -33,7 +30,6 @@ namespace DeltaDev.JovianBot
             var builder = new ConfigurationBuilder().SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("config.json");
             config = builder.Build();
-
             Process[] processlist = Process.GetProcesses();
             foreach (Process theprocess in processlist)
             {
@@ -44,7 +40,7 @@ namespace DeltaDev.JovianBot
                 }
             }
             //setting up the Discord Client and some events
-            DiscordSocketConfig socket = new DiscordSocketConfig()
+            DiscordSocketConfig socket = new()
             {
                 GatewayIntents = GatewayIntents.All,
             };
@@ -54,7 +50,7 @@ namespace DeltaDev.JovianBot
             client.MessageReceived += MessageReceivedAsync;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-            startTime = DateTime.UtcNow;
+            StartTime = DateTime.UtcNow;
             Storage = new DataStorage<string>(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 AppDomain.CurrentDomain.FriendlyName + "_DataStorage"), "MainStorage");
             try
@@ -71,7 +67,7 @@ namespace DeltaDev.JovianBot
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             await client.SetGameAsync($".NET FailFast");
-            await SendError(e.ExceptionObject as Exception ?? new Exception("Everything went so badly, even the Exception is not valid!"));
+            await SendError((Exception)e.ExceptionObject, await BotOwner.CreateDMChannelAsync());
         }
 
         [STAThread]
@@ -98,8 +94,9 @@ namespace DeltaDev.JovianBot
 
         private static async Task Client_Ready()
         {
-            await SendMessage("@everyone I'm online! 🥳", (IMessageChannel)client.GetChannel(ulong.Parse(config["botchannel"])));
+            
             await client.SetGameAsync("Discord.NET");
+            await SendDM(BotOwner, "I'm online!");
         }
         #endregion
         private static async void CurrentDomain_ProcessExit(object? sender, EventArgs e)
@@ -107,7 +104,7 @@ namespace DeltaDev.JovianBot
             try
             {
                 await client.SetGameAsync("Sleep");
-                await SendMessage($"I'm going offline👋", context);
+                await SendDM(BotOwner, "I'm going offline!");
                 await client.SetStatusAsync(UserStatus.Offline);
                 await client.LogoutAsync();
             }
@@ -132,8 +129,14 @@ namespace DeltaDev.JovianBot
             await SendMessage("Done!", channel);
         }
 
+        public static async Task SendDM(IUser user, string message)
+        {
+            await user.SendMessageAsync(message);
+        }
+
         public static async Task Reboot(IMessageChannel channel)
         {
+            await SendDM(BotOwner, "Someone requested a reboot.");
             await client.SetGameAsync("Reboot");
             await SendMessage("Wait a minute...", channel);
             var x = await Pi.RestartAsync();
@@ -166,11 +169,12 @@ namespace DeltaDev.JovianBot
                             {
                                 await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."), message.Channel);
                                 await dotCommand.InvokeAsync(args, message);
+                                didInvoke = true;
                                 break;
                             }
                             else
                             {
-                                await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command.");
+                                await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command.", message.Channel);
                                 didInvoke = true;
                             }
                         }
@@ -253,10 +257,10 @@ namespace DeltaDev.JovianBot
 
         public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, string? title = null, EmbedFooterBuilder? footer = null, Color? color = null)
         {
-                List<Embed> embeds = new List<Embed>();
+                List<Embed> embeds = new();
                 if (message.Length > 4096)
                 {
-                    var matches = Regex.Matches(message, @"(.{1,4096}\b|.{4096})", RegexOptions.Singleline);
+                    var matches = Regex.Matches(message, @"(.{1,4096}\b|.{4096})", RegexOptions.Singleline).ToList();
                     bool first = true;
                     foreach(Match match in matches)
                     {
@@ -297,7 +301,7 @@ namespace DeltaDev.JovianBot
             {
                 builder = builder.WithColor(embedColor);
             }
-            if (footer is EmbedFooterBuilder embedFooter)
+            if (footer is not null)
             {
                 builder = builder.WithFooter(footer);
             }
@@ -537,12 +541,12 @@ end program HelloWorld", "fortran"),
                 amount = Math.Max(amount, 1);
             }
 
-            Stopwatch watch = new Stopwatch();
+            Stopwatch watch = new();
             watch.Start();
             do
             {
-                RestClient client = new RestClient("https://icanhazdadjoke.com/");
-                RestRequest request = new RestRequest();
+                RestClient client = new("https://icanhazdadjoke.com/");
+                RestRequest request = new();
                 request.AddHeader("Accept", "application/json");
                 RestResponse response = await client.GetAsync(request);
                 joke += (JsonConvert.DeserializeObject<JokeObject>(response.Content ?? "")?.Joke ?? "No joke found 🤷") + "\n\n";
@@ -566,7 +570,7 @@ end program HelloWorld", "fortran"),
                 valPart += $"Total System RAM:  {FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
                 valPart += $"OS:                {Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
                 valPart += $"System Uptime:     {Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
-                valPart += $"Bot Uptime:        {(DateTime.UtcNow - startTime).ToTimeString()}\n";
+                valPart += $"Bot Uptime:        {(DateTime.UtcNow - StartTime).ToTimeString()}\n";
                 valPart += $"Bot Latency:       {client.Latency} ms";
                 retVal += Format.Code(valPart) + "\n";
                 valPart = "";
