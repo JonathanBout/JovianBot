@@ -227,16 +227,12 @@ namespace DeltaDev.JovianBot
 
         public static Task LogError(Exception ex)
         {
-#if !DEBUG
             var data = $"message: {ex.Message}\nsource:{ex.Source}";
             ConsoleColor original = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(data);
             Console.ForegroundColor = original;
             return Task.CompletedTask;
-#else
-            throw ex;
-#endif
         }
 
         public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, params EmbedFieldBuilder[] embedFields)
@@ -344,8 +340,8 @@ namespace DeltaDev.JovianBot
                     6 => ":seven:",
                     7 => ":eight:",
                     8 => ":nine:",
-                    9 => ":keycap_ten",
-                    _ => ""
+                    9 => ":keycap_ten:",
+                    _ => ":x:"
 
                 };
 
