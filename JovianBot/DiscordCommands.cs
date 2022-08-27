@@ -27,7 +27,7 @@ namespace DeltaDev.JovianBot
                     "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"),
                 new DiscordCommand(async (x, y) => await Program.SendMessage(GetHelpString(Find(x)), y.Channel), "Shows help for all or for a specified command.",
                     "help", "all", "commands"),
-                new DiscordCommand(async (x, y) => await Program.RemoveMessages(y.Channel), "Clears the last 100 messages.", "clearmessages",
+                new DiscordCommand(async (x, y) => await y.Channel.RemoveMessages(), "Clears the last 100 messages.", "clearmessages",
                     "clear", "removemessages"),
                 new DiscordCommand(async (x, y) => await Program.MakePoll(x, y.Channel), "Makes a poll with up to 10 options.", "poll", "questions", "question"),
                 new DiscordCommand(async (x, y) => await Program.Reconnect(y.Channel), "Reconnects the bot.", "reconnect"),

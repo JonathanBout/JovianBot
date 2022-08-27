@@ -5,10 +5,9 @@ using Newtonsoft.Json;
 using RestSharp;
 using Swan;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Unosquare.RaspberryIO;
 using Unosquare.WiringPi;
-using System.Text.RegularExpressions;
-using static System.Collections.Specialized.BitVector32;
 
 namespace DeltaDev.JovianBot
 {
@@ -19,7 +18,7 @@ namespace DeltaDev.JovianBot
         static private bool suspendLog;
         public static DataStorage<string> Storage { get; }
         static IUser BotOwner => client.GetUser(BotOwnerID);
-        static ulong BotOwnerID => ulong.Parse(config["BotOwnerID"]??"0");
+        static ulong BotOwnerID => ulong.Parse(config["BotOwnerID"] ?? "0");
         static DateTime StartTime { get; }
 
         public const char commandChar = '.';
@@ -94,7 +93,7 @@ namespace DeltaDev.JovianBot
 
         private static async Task Client_Ready()
         {
-            
+
             await client.SetGameAsync("Discord.NET");
             await SendDM(BotOwner, "I'm online!");
         }
@@ -152,7 +151,7 @@ namespace DeltaDev.JovianBot
             if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
                 return;
             try
-            { 
+            {
                 if (message.Content.StartsWith(commandChar))
                 {
                     string commandWithArgs = message.Content.TrimStart(commandChar, ' ');
@@ -165,24 +164,25 @@ namespace DeltaDev.JovianBot
                         if (dotCommand == command)
                         {
                             var userRoles = ((SocketGuildUser)message.Author).Roles;
-                            if (true) // just true for now, may want to implement a Roles system in the future
-                            {
-                                await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."), message.Channel);
-                                await dotCommand.InvokeAsync(args, message);
-                                didInvoke = true;
-                                break;
-                            }
-                            else
-                            {
-                                await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command.", message.Channel);
-                                didInvoke = true;
-                            }
+                            //if (true) // just true for now, may want to implement a Roles system in the future
+                            //{
+                            await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."), message.Channel);
+                            await dotCommand.InvokeAsync(args, message);
+                            didInvoke = true;
+                            break;
+                            //}
+                            //else
+                            //{
+                            //    await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command.", message.Channel);
+                            //    didInvoke = true;
+                            //}
                         }
                     }
                     if (!didInvoke)
                     {
                         await SendError(new Exception(Format.Bold($"I dont know what you mean by '{command}' 🤷")), message.Channel);
                     }
+                    // Do this check to make sure the bot does not crash if the message is deleted during command execution.
                     if (await message.Channel.GetMessageAsync(message.Id) is IMessage message1)
                     {
                         await message1.DeleteAsync();
@@ -258,37 +258,39 @@ namespace DeltaDev.JovianBot
 
         public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, string? title = null, EmbedFooterBuilder? footer = null, Color? color = null, params EmbedFieldBuilder[] embedFields)
         {
-                List<Embed> embeds = new();
-                if (message.Length > 4096)
+            List<Embed> embeds = new();
+            if (message.Length > 4096)
+            {
+                var matches = Regex.Matches(message, @"(.{1,4096}\b|.{4096})", RegexOptions.Singleline).ToList();
+                bool first = true;
+                foreach (Match match in matches)
                 {
-                    var matches = Regex.Matches(message, @"(.{1,4096}\b|.{4096})", RegexOptions.Singleline).ToList();
-                    bool first = true;
-                    foreach(Match match in matches)
+                    if (first)
                     {
-                        if (first)
-                        {
-                            embeds.Add(await BuildEmbed(match.Value, title, footer, color, embedFields));
-                        }else
-                        {
-                            embeds.Add(await BuildEmbed(match.Value, null, footer, color, embedFields));
-                        }
-                        first = false;
+                        embeds.Add(await BuildEmbed(match.Value, title, footer, color, embedFields));
                     }
+                    else
+                    {
+                        embeds.Add(await BuildEmbed(match.Value, null, footer, color, embedFields));
+                    }
+                    first = false;
+                }
 
-                }else
-                {
-                    embeds.Add(await BuildEmbed(message, title, footer, color, embedFields));
-                }
-                IUserMessage? msg = null;
-                foreach(var embed in embeds)
-                {
-                    msg = await channel.SendMessageAsync(embed: embed);
-                }
-                if (msg is null)
-                {
-                    throw new Exception("A unknown problem appeared while the bot tried sending a message.");
-                }
-                return msg;
+            }
+            else
+            {
+                embeds.Add(await BuildEmbed(message, title, footer, color, embedFields));
+            }
+            IUserMessage? msg = null;
+            foreach (var embed in embeds)
+            {
+                msg = await channel.SendMessageAsync(embed: embed);
+            }
+            if (msg is null)
+            {
+                throw new Exception("A unknown problem appeared while the bot tried sending a message.");
+            }
+            return msg;
         }
 
         static async Task<Embed> BuildEmbed(string message, string? title, EmbedFooterBuilder? footer, Color? color = null, params EmbedFieldBuilder[] embedFields)
@@ -312,39 +314,44 @@ namespace DeltaDev.JovianBot
         public static async Task MakePoll(string args, IMessageChannel channel)
         {
             if (args.Parse().Length <= 2) { await SendError(new Exception("Too few arguments!"), channel); return; }
-                string[] argsArray = args.Parse();
-                string pollText = argsArray[0];
-                for (int i = 0; i < argsArray.Length - 1 && i < 10; i++)
+            string[] argsArray = args.Parse();
+            string pollText = argsArray[0];
+            for (int i = 0; i < argsArray.Length - 1 && i < 10; i++)
+            {
+                string arg = argsArray.Skip(1).Take(argsArray.Length - 1).ToArray()[i];
+                string emoji = $"{i + 1}⃣";
+                pollText += $"\n{emoji} => {arg}";
+            }
+            IUserMessage? msg = await SendMessage(pollText, channel);
+            if (msg is null)
+            {
+                return;
+            }
+            List<Emoji> reactionEmotes = new();
+            for (int i = 0; i < argsArray.Length - 1; i++)
+            {
+                string emote = i switch
                 {
-                    string arg = argsArray.Skip(1).Take(argsArray.Length - 1).ToArray()[i];
-                    string emoji = $"{i + 1}⃣";
-                    pollText += $"\n{emoji} => {arg}";
-                }
-                IUserMessage? msg = await SendMessage(pollText, channel);
-                if (msg is null)
-                {
-                    return;
-                }
-                for (int i = 0; i < argsArray.Length - 1; i++)
-                {
-                    string emote = i switch
-                    {
-                        0 => ":one:",
-                        1 => ":two:",
-                        2 => ":three:",
-                        3 => ":four:",
-                        4 => ":five:",
-                        5 => ":six:",
-                        6 => ":seven:",
-                        7 => ":eight:",
-                        8 => ":nine:",
-                        9 => ":keycap_ten",
-                        _ => ""
+                    0 => ":one:",
+                    1 => ":two:",
+                    2 => ":three:",
+                    3 => ":four:",
+                    4 => ":five:",
+                    5 => ":six:",
+                    6 => ":seven:",
+                    7 => ":eight:",
+                    8 => ":nine:",
+                    9 => ":keycap_ten",
+                    _ => ""
 
-                    };
+                };
 
-                    await msg.AddReaction(emote);
+                if (Emoji.TryParse(emote, out Emoji emoji))
+                {
+                    reactionEmotes.Add(emoji);
                 }
+                await msg.AddReactionsAsync(reactionEmotes);
+            }
         }
 
         public static async Task AddReaction(this IUserMessage msg, string emote)
@@ -355,7 +362,7 @@ namespace DeltaDev.JovianBot
             }
         }
 
-        public static async Task RemoveMessages(IMessageChannel channel)
+        public static async Task RemoveMessages(this IMessageChannel channel)
         {
             await Log("Removing all messages. this will take some time.", false);
             suspendLog = true;
@@ -379,8 +386,8 @@ namespace DeltaDev.JovianBot
 
         public static async Task<string?> GetBaconIpsum(string args)
         {
-            RestClient client = new ();
-            RestRequest restRequest = new ("https://baconipsum.com/api/?type=meat&format=text");
+            RestClient client = new();
+            RestRequest restRequest = new("https://baconipsum.com/api/?type=meat&format=text");
             string[] arguments = args.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (arguments.Length > 0)
             {
@@ -392,7 +399,7 @@ namespace DeltaDev.JovianBot
 
         public static async Task<string?> GetCodeSnippet(string message)
         {
-            string? s =  await Task.FromResult(message.ToLower() switch
+            string? s = await Task.FromResult(message.ToLower() switch
             {
                 "assembly" => Format.Code(
 @"SECTION.data
@@ -427,7 +434,7 @@ int main()
 {
 	std::print(""Hello World!"");
 	return 0;
-}", "cpp") 
+}", "cpp")
                 + "\nor\n" + Format.Code(
 @"#include <iostream>
 
@@ -502,7 +509,7 @@ end program HelloWorld", "fortran"),
                 _ => null,
             });
 
-            return s is null? null : $"**'Hello World!' code snippet in {message.ToUpper()}:**\n" + s;
+            return s is null ? null : $"**'Hello World!' code snippet in {message.ToUpper()}:**\n" + s;
         }
 
         public static string[] Parse(this string str)
