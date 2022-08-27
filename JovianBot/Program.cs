@@ -14,7 +14,7 @@ namespace DeltaDev.JovianBot
     public static class Program
     {
         static readonly IConfiguration config;
-        static DiscordSocketClient client;
+        static readonly DiscordSocketClient client;
         static private bool suspendLog;
         public static DataStorage<string> Storage { get; }
         static IUser BotOwner => client.GetUser(BotOwnerID);
@@ -320,6 +320,10 @@ namespace DeltaDev.JovianBot
             {
                 string arg = argsArray.Skip(1).Take(argsArray.Length - 1).ToArray()[i];
                 string emoji = $"{i + 1}⃣";
+                if (i + 1 == 10)
+                {
+                    emoji = ":keycap_ten:";
+                }
                 pollText += $"\n{emoji} => {arg}";
             }
             IUserMessage? msg = await SendMessage(pollText, channel);
@@ -327,7 +331,6 @@ namespace DeltaDev.JovianBot
             {
                 return;
             }
-            List<Emoji> reactionEmotes = new();
             for (int i = 0; i < argsArray.Length - 1; i++)
             {
                 string emote = i switch
@@ -346,11 +349,7 @@ namespace DeltaDev.JovianBot
 
                 };
 
-                if (Emoji.TryParse(emote, out Emoji emoji))
-                {
-                    reactionEmotes.Add(emoji);
-                }
-                await msg.AddReactionsAsync(reactionEmotes);
+                await msg.AddReaction(emote);
             }
         }
 
