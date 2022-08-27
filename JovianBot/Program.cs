@@ -15,7 +15,6 @@ namespace DeltaDev.JovianBot
     {
         static readonly IConfiguration config;
         static readonly DiscordSocketClient client;
-        static private bool suspendLog;
         public static DataStorage<string> Storage { get; }
         static IUser BotOwner => client.GetUser(BotOwnerID);
         static ulong BotOwnerID => ulong.Parse(config["BotOwnerID"] ?? "0");
@@ -42,11 +41,15 @@ namespace DeltaDev.JovianBot
             DiscordSocketConfig socket = new()
             {
                 GatewayIntents = GatewayIntents.All,
+                LogGatewayIntentWarnings = false,
+                AlwaysDownloadUsers = true,
+                DefaultRetryMode = RetryMode.AlwaysRetry
             };
             client = new DiscordSocketClient(socket);
             client.Log += Log;
             client.Ready += Client_Ready;
-            client.MessageReceived += MessageReceivedAsync;
+            client.SlashCommandExecuted += Client_SlashCommandExecuted;
+            //client.MessageReceived += MessageReceivedAsync;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             StartTime = DateTime.UtcNow;
@@ -61,6 +64,11 @@ namespace DeltaDev.JovianBot
                 LogError(new Exception("Failed to initialize the Pi Object: " + ex.Message));
             }
             Log("Started!");
+        }
+
+        private static async Task Client_SlashCommandExecuted(SocketSlashCommand command)
+        {
+            await DiscordCommands.Commands.FirstOrDefault(x => x.Key == command.Data.Name).InvokeAsync(command);
         }
 
         private static async void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -93,7 +101,7 @@ namespace DeltaDev.JovianBot
 
         private static async Task Client_Ready()
         {
-
+            await DiscordCommands.Initialize(client);
             await client.SetGameAsync("Discord.NET");
             await SendDM(BotOwner, "I'm online!");
         }
@@ -146,63 +154,63 @@ namespace DeltaDev.JovianBot
                 await SendError(new Exception("Hmmm... that did not work. " + x.StandardError), channel);
         }
 
-        private static async Task MessageReceivedAsync(SocketMessage message)
-        {
-            if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
-                return;
-            try
-            {
-                if (message.Content.StartsWith(commandChar))
-                {
-                    string commandWithArgs = message.Content.TrimStart(commandChar, ' ');
-                    string args = string.Join(' ', commandWithArgs.Split(' ').Skip(1));
-                    string command = string.Join("", commandWithArgs.Split(' ').Take(1));
-                    bool didInvoke = false;
+        //private static async Task MessageReceivedAsync(SocketMessage message)
+        //{
+        //    if (client.CurrentUser is null || message.Author.Id == client.CurrentUser.Id || message.Author.IsBot || message.Author.IsWebhook)
+        //        return;
+        //    try
+        //    {
+        //        if (message.Content.StartsWith(commandChar))
+        //        {
+        //            string commandWithArgs = message.Content.TrimStart(commandChar, ' ');
+        //            string args = string.Join(' ', commandWithArgs.Split(' ').Skip(1));
+        //            string command = string.Join("", commandWithArgs.Split(' ').Take(1));
+        //            bool didInvoke = false;
 
-                    foreach (DiscordCommand dotCommand in DiscordCommands.Commands)
-                    {
-                        if (dotCommand == command)
-                        {
-                            var userRoles = ((SocketGuildUser)message.Author).Roles;
-                            //if (true) // just true for now, may want to implement a Roles system in the future
-                            //{
-                            await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."), message.Channel);
-                            await dotCommand.InvokeAsync(args, message);
-                            didInvoke = true;
-                            break;
-                            //}
-                            //else
-                            //{
-                            //    await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command.", message.Channel);
-                            //    didInvoke = true;
-                            //}
-                        }
-                    }
-                    if (!didInvoke)
-                    {
-                        await SendError(new Exception(Format.Bold($"I dont know what you mean by '{command}' 🤷")), message.Channel);
-                    }
-                    // Do this check to make sure the bot does not crash if the message is deleted during command execution.
-                    if (await message.Channel.GetMessageAsync(message.Id) is IMessage message1)
-                    {
-                        await message1.DeleteAsync();
-                    }
-                }
-                return;
-            }
-            catch (IgnoredException ex)
-            {
-                ThrowException(ex);
-            }
-            catch (Exception ex)
-            {
-                if (await message.Channel.GetMessageAsync(message.Id) is IMessage message1)
-                {
-                    await message1.DeleteAsync();
-                }
-                await SendError(new Exception("Error whilst processing your input: " + Format.Code(ex.Message)), message.Channel);
-            }
-        }
+        //            foreach (DiscordCommand dotCommand in DiscordCommands.Commands)
+        //            {
+        //                if (dotCommand == command)
+        //                {
+        //                    var userRoles = ((SocketGuildUser)message.Author).Roles;
+        //                    //if (true) // just true for now, may want to implement a Roles system in the future
+        //                    //{
+        //                    await SendMessage(Format.Bold($"{message.Author.Username} invoked command {command}."), message.Channel);
+        //                    await dotCommand.InvokeAsync(args, message);
+        //                    didInvoke = true;
+        //                    break;
+        //                    //}
+        //                    //else
+        //                    //{
+        //                    //    await SendMessage($"{message.Author.Username} does not have permission to send the {dotCommand.FirstKey} command.", message.Channel);
+        //                    //    didInvoke = true;
+        //                    //}
+        //                }
+        //            }
+        //            if (!didInvoke)
+        //            {
+        //                await SendError(new Exception(Format.Bold($"I dont know what you mean by '{command}' 🤷")), message.Channel);
+        //            }
+        //            // Do this check to make sure the bot does not crash if the message is deleted during command execution.
+        //            if (await message.Channel.GetMessageAsync(message.Id) is IMessage message1)
+        //            {
+        //                await message1.DeleteAsync();
+        //            }
+        //        }
+        //        return;
+        //    }
+        //    catch (IgnoredException ex)
+        //    {
+        //        ThrowException(ex);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        if (await message.Channel.GetMessageAsync(message.Id) is IMessage message1)
+        //        {
+        //            await message1.DeleteAsync();
+        //        }
+        //        await SendError(new Exception("Error whilst processing your input: " + Format.Code(ex.Message)), message.Channel);
+        //    }
+        //}
 
         public static async void ThrowException(Exception ex)
         {
@@ -212,11 +220,7 @@ namespace DeltaDev.JovianBot
 
         static Task Log(LogMessage msg)
         {
-            if (!suspendLog)
-            {
-                return Log(msg.ToString());
-            }
-            return Task.CompletedTask;
+            return Log(msg.ToString());
         }
 
         public static Task Log(string msg, bool newLine = true)
@@ -233,6 +237,23 @@ namespace DeltaDev.JovianBot
             Console.WriteLine(data);
             Console.ForegroundColor = original;
             return Task.CompletedTask;
+        }
+
+        public static async Task Reply(this SocketSlashCommand command, string message, string? title = null, string? footer = null, Color? color = null, params EmbedFieldBuilder[] embedFields)
+        {
+            Embed embed = await BuildEmbed(message, title, new EmbedFooterBuilder().WithText(footer), color, embedFields);
+            await command.RespondAsync(embed: embed);
+        }
+
+        public static async Task Error(this SocketSlashCommand command, string message, string? title = "Error")
+        {
+            Embed embed = await BuildEmbed(message, title, new EmbedFooterBuilder().WithText("Please contact Dutch Space#3223 if this error continues to occur."), Color.Red);
+            await command.RespondAsync(embed: embed);
+        }
+
+        public static async Task Error(this SocketSlashCommand command, Exception exception)
+        {
+            await command.Error(exception.Message);
         }
 
         public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, params EmbedFieldBuilder[] embedFields)
@@ -307,14 +328,12 @@ namespace DeltaDev.JovianBot
             return await Task.FromResult(builder.Build());
         }
 
-        public static async Task MakePoll(string args, IMessageChannel channel)
+        public static async Task MakePoll(string[] args, SocketSlashCommand command)
         {
-            if (args.Parse().Length <= 2) { await SendError(new Exception("Too few arguments!"), channel); return; }
-            string[] argsArray = args.Parse();
-            string pollText = argsArray[0];
-            for (int i = 0; i < argsArray.Length - 1 && i < 10; i++)
+            string pollText = args[0];
+            for (int i = 0; i < args.Length - 1 && i < 10; i++)
             {
-                string arg = argsArray.Skip(1).Take(argsArray.Length - 1).ToArray()[i];
+                string arg = args.Skip(1).Take(args.Length - 1).ToArray()[i];
                 string emoji = $"{i + 1}⃣";
                 if (i + 1 == 10)
                 {
@@ -322,12 +341,12 @@ namespace DeltaDev.JovianBot
                 }
                 pollText += $"\n{emoji} => {arg}";
             }
-            IUserMessage? msg = await SendMessage(pollText, channel);
+            IUserMessage? msg = await SendMessage(pollText, command.Channel);
             if (msg is null)
             {
                 return;
             }
-            for (int i = 0; i < argsArray.Length - 1; i++)
+            for (int i = 0; i < args.Length - 1; i++)
             {
                 string emote = i switch
                 {
@@ -355,28 +374,6 @@ namespace DeltaDev.JovianBot
             {
                 await msg.AddReactionAsync(result);
             }
-        }
-
-        public static async Task RemoveMessages(this IMessageChannel channel)
-        {
-            await Log("Removing all messages. this will take some time.", false);
-            suspendLog = true;
-            IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages = channel.GetMessagesAsync();
-            var mes = await SendMessage("Please wait while I remove the last 99 messages...", channel, null, "", Color.LightOrange);
-            int messagesCount = 0;
-            await foreach (IMessage message in messages.Flatten())
-            {
-                if (message.Id == mes.Id) { continue; }
-                await message.DeleteAsync();
-                _ = Log(".", false);
-                messagesCount++;
-            }
-            suspendLog = false;
-            await Log("\nDone!");
-            var doneMes = await SendMessage($"removed {messagesCount} messages.", channel, null, "", Color.Orange);
-            await mes.DeleteAsync();
-            await Task.Delay(3000);
-            await doneMes.DeleteAsync();
         }
 
         public static async Task<string?> GetBaconIpsum(string args)
