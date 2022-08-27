@@ -239,23 +239,25 @@ namespace DeltaDev.JovianBot
 #endif
         }
 
-        public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel)
+        public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, params EmbedFieldBuilder[] embedFields)
         {
-            return await SendMessage(message, channel, null, "", null);
+            return await SendMessage(message, channel, null, "", null, embedFields);
         }
 
         public static async Task<IUserMessage> SendError(Exception error, IMessageChannel channel)
         {
-            return await SendMessage(error.Message, channel, "Error", "", color: Color.Red);
+            string errorMessage = "Message:\n" + Format.Code(error.Message) + "\n" + "Target Site:\n" + Format.Code(error.TargetSite?.Name ?? "<Unknown>");
+            EmbedFieldBuilder builder = new EmbedFieldBuilder().
+            return await SendMessage(errorMessage, channel, $"Error ({error.GetType().Name})", "", color: Color.Red);
         }
 
-        public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, string? title = null, string? footer = null, Color? color = null)
+        public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, string? title = null, string? footer = null, Color? color = null, params EmbedFieldBuilder[] embedFields)
         {
             EmbedFooterBuilder builder = new EmbedFooterBuilder().WithText(footer);
-            return await SendMessage(message, channel, title, builder, color);
+            return await SendMessage(message, channel, title, builder, color, embedFields);
         }
 
-        public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, string? title = null, EmbedFooterBuilder? footer = null, Color? color = null)
+        public static async Task<IUserMessage> SendMessage(string message, IMessageChannel channel, string? title = null, EmbedFooterBuilder? footer = null, Color? color = null, params EmbedFieldBuilder[] embedFields)
         {
                 List<Embed> embeds = new();
                 if (message.Length > 4096)
@@ -266,17 +268,17 @@ namespace DeltaDev.JovianBot
                     {
                         if (first)
                         {
-                            embeds.Add(await BuildEmbed(match.Value, title, footer, color));
+                            embeds.Add(await BuildEmbed(match.Value, title, footer, color, embedFields));
                         }else
                         {
-                            embeds.Add(await BuildEmbed(match.Value, null, footer, color));
+                            embeds.Add(await BuildEmbed(match.Value, null, footer, color, embedFields));
                         }
                         first = false;
                     }
 
                 }else
                 {
-                    embeds.Add(await BuildEmbed(message, title, footer, color));
+                    embeds.Add(await BuildEmbed(message, title, footer, color, embedFields));
                 }
                 IUserMessage? msg = null;
                 foreach(var embed in embeds)
@@ -290,9 +292,9 @@ namespace DeltaDev.JovianBot
                 return msg;
         }
 
-        static async Task<Embed> BuildEmbed(string message, string? title, EmbedFooterBuilder? footer, Color? color = null)
+        static async Task<Embed> BuildEmbed(string message, string? title, EmbedFooterBuilder? footer, Color? color = null, params EmbedFieldBuilder[] embedFields)
         {
-            EmbedBuilder builder = new EmbedBuilder().WithDescription(message);
+            EmbedBuilder builder = new EmbedBuilder().WithDescription(message).WithFields(embedFields);
             if (!string.IsNullOrEmpty(title))
             {
                 builder = builder.WithTitle(title);
