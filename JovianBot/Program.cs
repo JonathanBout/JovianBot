@@ -160,7 +160,7 @@ namespace DeltaDev.JovianBot
                     string command = string.Join("", commandWithArgs.Split(' ').Take(1));
                     bool didInvoke = false;
 
-                    foreach (DotCommand dotCommand in DotCommands.Commands)
+                    foreach (DiscordCommand dotCommand in DiscordCommands.Commands)
                     {
                         if (dotCommand == command)
                         {
