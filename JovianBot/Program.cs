@@ -247,7 +247,6 @@ namespace DeltaDev.JovianBot
         public static async Task<IUserMessage> SendError(Exception error, IMessageChannel channel)
         {
             string errorMessage = "Message:\n" + Format.Code(error.Message) + "\n" + "Target Site:\n" + Format.Code(error.TargetSite?.Name ?? "<Unknown>");
-            EmbedFieldBuilder builder = new EmbedFieldBuilder().
             return await SendMessage(errorMessage, channel, $"Error ({error.GetType().Name})", "", color: Color.Red);
         }
 
@@ -559,7 +558,7 @@ end program HelloWorld", "fortran"),
 
         public static async Task<string> GetStats(SocketGuild server)
         {
-            string retVal = $"{Format.Bold($"Bot Stats{(Debugger.IsAttached ? " [DEBUG MODE]" : "")}:")}\n";
+            string retVal = "";
             try
             {
                 IGuildUser[] users = (await server.GetUsersAsync().FlattenAsync()).ToArray();
@@ -570,18 +569,19 @@ end program HelloWorld", "fortran"),
                 string valPart = "";
                 valPart += $"Hardware:          Raspberry PI Model 3B+              \n";
                 valPart += $"Total System RAM:  {FormatValue(Pi.Info.InstalledRam, format: "0")}\n";
-                valPart += $"OS:                {Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
+                valPart += $"Operating System:  {Pi.Info.OperatingSystem.SysName} release {Pi.Info.OperatingSystem.Release}\n";
                 valPart += $"System Uptime:     {Pi.Info.UptimeTimeSpan.ToTimeString()}\n";
                 valPart += $"Bot Uptime:        {(DateTime.UtcNow - StartTime).ToTimeString()}\n";
                 valPart += $"Bot Latency:       {client.Latency} ms";
+                valPart += $"Connected Servers: {client.Guilds.Count}\n";
                 retVal += Format.Code(valPart) + "\n";
                 valPart = "";
-                retVal += Format.Bold("Server Stats:\n");
+                retVal += Format.Bold("Current Server Stats:\n");
                 valPart += $"Total Members:     {FormatValue(totalUsers, "", 1000, "0")} ({bots} bot{(bots == 1 ? "" : "s")})\n";
                 valPart += $"Online:            {online}\n";
                 valPart += $"Offline:           {offline}\n";
                 retVal += Format.Code(valPart);
-                return Format.BlockQuote(retVal);
+                return retVal;
             }
             catch (Exception ex)
             {

@@ -36,7 +36,7 @@ namespace DeltaDev.JovianBot
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
                 bool didChange = false;
-                while (sw.ElapsedMilliseconds < 2000 & !didChange)
+                while (sw.ElapsedMilliseconds < 2000 && !didChange)
                 {
                     if (!string.IsNullOrEmpty(output))
                     {

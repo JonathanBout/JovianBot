@@ -25,7 +25,7 @@ namespace DeltaDev.JovianBot
                     else {await Program.SendError(new Exception("I don't know that language (yet)"), y.Channel); } },
                     "Sends a code snippet to print 'Hello World!' in the specified language.",
                     "snippet", "hellosnippet", "helloworldsnippet", "codesnippet"),
-                new DotCommand(async (x, y) => await Program.SendMessage(Format.BlockQuote(GetHelpString(Find(x))), y.Channel), "Shows help for all or for a specified command.",
+                new DotCommand(async (x, y) => await Program.SendMessage(GetHelpString(Find(x)), y.Channel), "Shows help for all or for a specified command.",
                     "help", "all", "commands"),
                 new DotCommand(async (x, y) => await Program.RemoveMessages(y.Channel), "Clears the last 100 messages.", "clearmessages",
                     "clear", "removemessages"),
@@ -40,8 +40,6 @@ namespace DeltaDev.JovianBot
                 new DotCommand(async (x, y) => await Program.ReadDS(x, y.Channel), "Reads all stuff or a specific key in the DataStorage.", "read", "get", "load"),
                 new DotCommand(async (x, y) => await Program.ClearDS(y.Channel), "Removes all stuff in the DataStorage.", "removedata",
                     "cleardata", "deletedata"),
-                new DotCommand(      (x, y) => throw new IgnoredException(x), "Throws an Exception, so that the bot crashes.",
-                    "error", "bug"),
                 new DotCommand(async (x, y) => await Program.Reboot(y.Channel), "Reboots the Raspberry PI the bot is running on.", "reboot",
                     "restart"),
                 new DotCommand(async (x, y) => await Program.SendMessage($"Saved path is {Format.Code(Path.GetFullPath(Program.Storage.StoragePath))}", y.Channel),
@@ -50,7 +48,13 @@ namespace DeltaDev.JovianBot
                     "shell", "bash"),
                 new DotCommand(async (x, y) => {string? result = await Program.GetBaconIpsum(x);
                     if (!string.IsNullOrEmpty(result)) { await Program.SendMessage(result, y.Channel, "Bacon Ipsum", "From https://baconipsum.com/", color: Color.Green);}
-                    else { await Program.SendError(new Exception("The result was empty."), y.Channel); } }, "Returns some Bacon Ipsum from [Bacon Ipsum](https://baconipsum.com/).", "bacon", "lorem", "text")
+                    else { await Program.SendError(new Exception("The result was empty."), y.Channel); } }, "Returns some Bacon Ipsum from [Bacon Ipsum](https://baconipsum.com/).", "bacon", "lorem", "text"),
+#if DEBUG // --------------------------- DEBUG MODE ONLY COMMANDS --------------------------------------------------------------------------------------------------------------- \\
+                new DotCommand(      (x, y) => throw new IgnoredException(x), "Throws an Exception, so that the bot crashes.",
+                    "error", "bug"),
+                new DotCommand(async (x, y) => await Program.SendError(new Exception("A test exception"), y.Channel), "Throws a test exception, to test the Error message system (Debug Omly)",
+                    "testerror", "testbug")
+#endif
             }) ;
         }
 
@@ -103,7 +107,7 @@ namespace DeltaDev.JovianBot
             return Keys.Contains(key);
         }
 
-        #region overrides
+#region overrides
         public static bool operator ==(DotCommand command, string key)
         {
             return command.Keys.Any(x => x.ToLower() == key.ToLower());
@@ -137,7 +141,7 @@ namespace DeltaDev.JovianBot
         {
             return base.GetHashCode();
         }
-        #endregion
+#endregion
     }
 
     public class IgnoredException : Exception
